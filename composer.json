@@ -1,0 +1,25 @@
+{
+  "name": "jonjon1992/php-dynamo",
+  "type": "library",
+  "autoload": {
+    "psr-4": {
+      "Jonjon\\PhpDynamo\\": "lib"
+    }
+  },
+  "authors": [
+    {
+      "name": "Jonathan Braga",
+      "email": "jonathan201392127@gmail.com"
+    }
+  ],
+  "require": {
+    "php": ">=8.0",
+    "aws/aws-sdk-php": "^3.148",
+    "doctrine/annotations": "2.0.1",
+    "ext-json": "*",
+    "ext-simplexml": "*"
+  },
+  "config": {
+    "process-timeout": 0
+  }
+}
