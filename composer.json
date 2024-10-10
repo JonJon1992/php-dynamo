@@ -1,11 +1,13 @@
 {
   "name": "jonjon1992/php-dynamo",
   "type": "library",
+  "version": "1.0.0",
   "autoload": {
     "psr-4": {
       "Jonjon\\PhpDynamo\\": "lib"
     }
-  },
+  }
+,
   "authors": [
     {
       "name": "Jonathan Braga",
