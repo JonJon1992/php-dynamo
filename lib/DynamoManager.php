@@ -151,42 +151,42 @@ class DynamoManager
     }
 
     /**
-     * @param array $itens
+     * @param array $items
      * @param array $config
      * @return WriteRequestBatch|null
      * @throws ReflectionException
      */
-    public function insertItems(array $itens, array $config = []): ?WriteRequestBatch
+    public function insertItems(array $items, array $config = []): ?WriteRequestBatch
     {
-        if (count($itens) === 0) {
+        if (count($items) === 0) {
             return null;
         }
-        $table = $itens[0]::getTableName();
+        $table = $items[0]::getTableName();
         return $this->dynamo->insertItems($table, array_map(function (DynamoItem $item) use ($table) {
             if ($item::getTableName() != $table) {
                 throw new InvalidArgumentException("Itens of tables diferents.");
             }
             return $item->serialize();
-        }, $itens), $config);
+        }, $items), $config);
     }
 
     /**
-     * @param array $itens
+     * @param array $items
      * @param array $config
      * @return WriteRequestBatch|null
      */
-    public function deleteItems(array $itens, array $config = []): ?WriteRequestBatch
+    public function deleteItems(array $items, array $config = []): ?WriteRequestBatch
     {
-        if (count($itens) === 0) {
+        if (count($items) === 0) {
             return null;
         }
-        $table = $itens[0]::getTableName();
+        $table = $items[0]::getTableName();
         return $this->dynamo->deleteItems($table, array_map(function (DynamoItem $item) use ($table) {
             if ($item::getTableName() != $table) {
-                throw new InvalidArgumentException("Itens of tables diferents.");
+                throw new InvalidArgumentException("Items of tables different.");
             }
             return $item->getKey();
-        }, $itens), $config);
+        }, $items), $config);
     }
 
     /**
