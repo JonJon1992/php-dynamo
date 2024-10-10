@@ -4,6 +4,15 @@ namespace Jonjon\PhpDynamo\Util;
 
 trait DynamoUtil
 {
-    protected  function generateFilterValues(string $name,$values,string $type, $queryBuilder){}
+    /**
+     * @param string $name
+     * @param $values
+     * @param string $type
+     * @param $queryBuilder
+     * @return void
+     */
+    protected function generateFilterValues(string $name, $values, string $type, $queryBuilder)
+    {
+    }
 
 }

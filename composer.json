@@ -1,7 +1,7 @@
 {
   "name": "jonjon1992/php-dynamo",
   "type": "library",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "autoload": {
     "psr-4": {
       "Jonjon\\PhpDynamo\\": "lib"
@@ -16,7 +16,7 @@
   ],
   "require": {
     "php": ">=8.0",
-    "aws/aws-sdk-php": "^3.148",
+    "aws/aws-sdk-php": "3.288.1.0",
     "doctrine/annotations": "2.0.1",
     "ext-json": "*",
     "ext-simplexml": "*"

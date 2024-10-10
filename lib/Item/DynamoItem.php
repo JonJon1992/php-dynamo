@@ -13,7 +13,6 @@ abstract class DynamoItem
 {
     /**
      * @param $data
-     * @throws \ReflectionException
      */
     public function __construct($data = null)
     {

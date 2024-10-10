@@ -36,6 +36,14 @@ class DynamoManager
         $this->transactions = new DynamoTransaction($this->dynamo);
     }
 
+    /**
+     * @param string $key
+     * @param string $secret
+     * @param string $region
+     * @param string|null $endpoint
+     * @param string|null $namespace
+     * @return DynamoManager
+     */
     public static function create(
         string $key,
         string $secret,
@@ -47,21 +55,39 @@ class DynamoManager
         return new DynamoManager($key, $secret, $region, $endpoint, $namespace);
     }
 
+    /**
+     * @param DynamoItem $item
+     * @return Result
+     * @throws ReflectionException
+     */
     public function save(DynamoItem $item): Result
     {
         return $this->dynamo->put($item::getTableName(), $item->serialize());
     }
 
+    /**
+     * @param DynamoItem $item
+     * @return Result
+     */
     public function delete(DynamoItem $item): Result
     {
         return $this->dynamo->delete($item::getTableName(), $item->getKey());
     }
 
+    /**
+     * @return Dynamo
+     */
     public function getDynamo(): Dynamo
     {
         return $this->dynamo;
     }
 
+    /**
+     * @param $item
+     * @param string $hydrate
+     * @param string|null $class
+     * @throws ReflectionException
+     */
     public function convert($item, string $hydrate = self::HYDRATE_OBJECT, string $class = null)
     {
         if (empty($item)) {
@@ -80,13 +106,29 @@ class DynamoManager
         return $item;
     }
 
-    public function convertItens(array $itens, string $hydrate = self::HYDRATE_OBJECT, string $class = null)
+    /**
+     * @param array $itens
+     * @param string $hydrate
+     * @param string|null $class
+     * @throws ReflectionException
+     */
+    public function convertItens(array $itens, string $hydrate = self::HYDRATE_OBJECT, string $class = null): array
     {
         return array_map(function ($item) use ($hydrate, $class) {
             return $this->convert($item, $hydrate, $item);
         }, $itens);
     }
 
+    /**
+     * @param string $table
+     * @param string $keyConditionExpression
+     * @param array $values
+     * @param string|null $filterExpression
+     * @param string|null $attributes
+     * @param array|null $names
+     * @param array|null $params
+     * @return array
+     */
     public function query(
         string $table,
         string $keyConditionExpression,
@@ -95,7 +137,7 @@ class DynamoManager
         string $attributes = null,
         array  $names = null,
         array  $params = null
-    )
+    ): array
     {
         return $this->dynamo->query(
             $table,
@@ -108,6 +150,12 @@ class DynamoManager
         );
     }
 
+    /**
+     * @param array $itens
+     * @param array $config
+     * @return WriteRequestBatch|null
+     * @throws ReflectionException
+     */
     public function insertItems(array $itens, array $config = []): ?WriteRequestBatch
     {
         if (count($itens) === 0) {
@@ -122,6 +170,11 @@ class DynamoManager
         }, $itens), $config);
     }
 
+    /**
+     * @param array $itens
+     * @param array $config
+     * @return WriteRequestBatch|null
+     */
     public function deleteItems(array $itens, array $config = []): ?WriteRequestBatch
     {
         if (count($itens) === 0) {
@@ -136,6 +189,9 @@ class DynamoManager
         }, $itens), $config);
     }
 
+    /**
+     * @return DynamoTransaction
+     */
     public function getTransaction(): DynamoTransaction
     {
         return $this->transactions;
@@ -153,6 +209,11 @@ class DynamoManager
         return $reflect->newInstance($item);
     }
 
+    /**
+     * @param $item
+     * @param string|null $class
+     * @return string|null
+     */
     private function getItemClassByItem($item, ?string $class): ?string
     {
         $item = (object)$item;

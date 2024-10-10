@@ -32,93 +32,152 @@ class DynamoQueryBuilder
         $this->class = $class;
     }
 
+    /**
+     * @param $keyCondition
+     * @return $this
+     */
     public function setCondition($keyCondition): static
     {
         $this->keyConditionExpression = $keyCondition;
         return $this;
     }
 
+    /**
+     * @param $key
+     * @param $value
+     * @return $this
+     */
     public function addValue($key, $value): static
     {
         $this->values[$key] = $value;
         return $this;
     }
 
+    /**
+     * @param $filter
+     * @return $this
+     */
     public function setFilter($filter): static
     {
         $this->filterExpression = $filter;
         return $this;
     }
 
+    /**
+     * @param $attributes
+     * @return $this
+     */
     public function setAttributes($attributes): static
     {
         $this->attributes = $attributes;
         return $this;
     }
 
+    /**
+     * @param $key
+     * @param $value
+     * @return $this
+     */
     public function addParams($key, $value): static
     {
         $this->params[$key] = $value;
         return $this;
     }
 
+    /**
+     * @param $key
+     * @param $value
+     * @return $this
+     */
     public function addAttributeName($key, $value): static
     {
         $this->params[$key] = $value;
         return $this;
     }
 
-    public function getIndex()
+    /**
+     * @return mixed|null
+     */
+    public function getIndex(): mixed
     {
         return $this->params['IndexName'] ?? null;
     }
 
+    /**
+     * @param $index
+     * @return $this
+     */
     public function setIndex($index): static
     {
         $this->params['IndexName'] = $index;
         return $this;
     }
 
+    /**
+     * @param array $startKey
+     * @return $this
+     */
     public function setStartKey(array $startKey): static
     {
         $this->params['ExclusiveStartKey'] = $startKey;
         return $this;
     }
 
-    public function getLimit()
+    /**
+     * @return mixed|null
+     */
+    public function getLimit(): mixed
     {
         return $this->params['Limit'] ?? null;
     }
 
+    /**
+     * @param int $limit
+     * @return $this
+     */
     public function setLimit(int $limit): static
     {
         $this->params['Limit'] = $limit;
         return $this;
     }
 
+    /**
+     * @return $this
+     */
     public function setOrderByDes(): static
     {
         $this->params['ScanIndexForward'] = false;
         return $this;
     }
 
+    /**
+     * @return null
+     */
     public function getLastKey()
     {
         return $this->lastKey;
     }
 
+    /**
+     * @return array
+     */
     public function getItems(): array
     {
         return $this->items;
     }
 
+    /**
+     * @return bool
+     */
     public function isLastPage(): bool
     {
         return is_null($this->getLastKey());
     }
 
     /**
-     * @throws \ReflectionException
+     * @param string $hydrate
+     * @param bool $filterItem
+     * @return array
      */
     public function getResult(string $hydrate = DynamoManager::HYDRATE_OBJECT, bool $filterItem = false): array
     {

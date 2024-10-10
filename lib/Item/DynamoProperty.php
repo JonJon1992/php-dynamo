@@ -3,6 +3,7 @@
 namespace Jonjon\PhpDynamo\Item;
 
 use Doctrine\Common\Annotations\AnnotationReader;
+use InvalidArgumentException;
 use ReflectionProperty;
 
 class DynamoProperty
@@ -19,7 +20,6 @@ class DynamoProperty
     /**
      * @var string
      */
-
     public $onHydrate;
 
     public $onSerialize;
@@ -32,8 +32,11 @@ class DynamoProperty
     /**
      * @var array
      */
-    private static $propAnnotation = [];
+    private static array $propAnnotation = [];
 
+    /**
+     * @param array $values
+     */
     public function __construct(array $values)
     {
         if (!isset($values['name'])) {
@@ -71,7 +74,9 @@ class DynamoProperty
         return $this->onHydrate;
     }
 
-
+    /**
+     * @return string|null
+     */
     public function getOnSerialize(): ?string
     {
         return $this->onSerialize;
@@ -86,6 +91,11 @@ class DynamoProperty
     }
 
 
+    /**
+     * @param string $class
+     * @param ReflectionProperty $property
+     * @param AnnotationReader $annotation
+     */
     public static function getAnnotation(string $class, ReflectionProperty $property, AnnotationReader $annotation)
     {
         $name = $property->getName();

@@ -41,6 +41,9 @@ class Dynamo
 
     }
 
+    /**
+     * @return array
+     */
     public function list(): array
     {
         $receipt = $this->dynamo->listTables();
@@ -49,6 +52,10 @@ class Dynamo
         return ['tables' => $tables];
     }
 
+    /**
+     * @param string $table
+     * @return Result|DynamoDbException|Exception|array
+     */
     public function describe(string $table): Result|DynamoDbException|Exception|array
     {
         try {
@@ -64,6 +71,10 @@ class Dynamo
         return $receipt;
     }
 
+    /**
+     * @param array $tableSettings
+     * @return Result|DynamoDbException|Exception|array
+     */
     public function create(array $tableSettings): Result|DynamoDbException|Exception|array
     {
         try {
@@ -78,6 +89,10 @@ class Dynamo
         return $receipt;
     }
 
+    /**
+     * @param string $table
+     * @return Result|DynamoDbException|Exception|array
+     */
     public function drop(string $table): Result|DynamoDbException|Exception|array
     {
         try {
@@ -91,6 +106,11 @@ class Dynamo
         return $receipt;
     }
 
+    /**
+     * @param string $table
+     * @param array $data
+     * @return array
+     */
     public function putAll(
         string $table,
         array  $data = []
@@ -103,6 +123,11 @@ class Dynamo
         return $receipt;
     }
 
+    /**
+     * @param string $table
+     * @param $value
+     * @return Result
+     */
     public function put(
         string $table,
                $value
@@ -113,6 +138,10 @@ class Dynamo
             is_string($value) ? $value : json_encode($value, JSON_UNESCAPED_SLASHES)));
     }
 
+    /**
+     * @param string $table
+     * @param array $key
+     */
     public function get(
         string $table,
         array  $key
@@ -123,6 +152,14 @@ class Dynamo
         return isset($result['Item']) ? $marshal->unmarshalItem($result['Item']) : null;
     }
 
+    /**
+     * @param string $table
+     * @param string $updateExpression
+     * @param array $values
+     * @param array $key
+     * @param string|null $condition
+     * @return Result
+     */
     public function update(
         string $table,
         string $updateExpression,
@@ -134,6 +171,13 @@ class Dynamo
         return $this->dynamo->updateItem($this->toPrepareUpdate($table, $updateExpression, $values, $key, $condition));
     }
 
+    /**
+     * @param string $table
+     * @param array $key
+     * @param string|null $condition
+     * @param array|null $values
+     * @return Result
+     */
     public function delete(
         string $table,
         array  $key,
@@ -144,6 +188,16 @@ class Dynamo
         return $this->dynamo->deleteItem($this->toPrepareDelete($table, $key, $condition, $values));
     }
 
+    /**
+     * @param string $table
+     * @param string $keyCondition
+     * @param array $values
+     * @param string|null $filter
+     * @param string|null $attributes
+     * @param array|null $names
+     * @param array|null $params
+     * @return array
+     */
     public function query(
         string $table,
         string $keyCondition,
@@ -182,6 +236,11 @@ class Dynamo
         ];
     }
 
+    /**
+     * @param $table
+     * @param $serializeItem
+     * @return array
+     */
     public function toPrepare(
         $table,
         $serializeItem
@@ -193,6 +252,14 @@ class Dynamo
             'Item' => $marshal->marshalJson($serializeItem)];
     }
 
+    /**
+     * @param string $table
+     * @param string $updateExpression
+     * @param array $values
+     * @param array $key
+     * @param string|null $condition
+     * @return array
+     */
     public function toPrepareUpdate(
         string $table,
         string $updateExpression,
@@ -215,6 +282,14 @@ class Dynamo
         return $params;
     }
 
+    /**
+     * @param string $table
+     * @param array $key
+     * @param string|null $condition
+     * @param array|null $values
+     * @return array
+     */
+
     public function toPrepareDelete(
         string $table,
         array  $key,
@@ -236,6 +311,16 @@ class Dynamo
         return $params;
     }
 
+    /**
+     * @param string $table
+     * @param string $keyCondition
+     * @param array $values
+     * @param string|null $filter
+     * @param string|null $attributes
+     * @param array|null $names
+     * @param array|null $params
+     * @return array
+     */
     public function toPrepareQuery(
         string $table,
         string $keyCondition,
@@ -269,6 +354,13 @@ class Dynamo
         return $params;
     }
 
+    /**
+     * @param string $table
+     * @param string|null $filterExpression
+     * @param array|null $values
+     * @param array|null $params
+     * @return array
+     */
     public function scan(
         string $table,
         string $filterExpression = null,
@@ -301,6 +393,12 @@ class Dynamo
         ];
     }
 
+    /**
+     * @param string $table
+     * @param array $itens
+     * @param array $config
+     * @return WriteRequestBatch
+     */
     public function insertItems(
         string $table,
         array  $itens,
@@ -318,6 +416,12 @@ class Dynamo
         return $writeRequest;
     }
 
+    /**
+     * @param string $table
+     * @param array $keys
+     * @param array $config
+     * @return WriteRequestBatch
+     */
     public function deleteItems(
         string $table,
         array  $keys,
@@ -335,6 +439,9 @@ class Dynamo
         return $writeRequest;
     }
 
+    /**
+     * @return DynamoDbClient
+     */
     public function getClient(): DynamoDbClient
     {
         return $this->dynamo;
