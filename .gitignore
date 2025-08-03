@@ -1,0 +1,52 @@
+# Composer
+/vendor/
+composer.phar
+composer.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Cache
+.cache/
+.phpunit.cache/
+
+# Coverage
+coverage/
+coverage.txt
+
+# Documentation
+docs/
+
+# Environment
+.env
+.env.local
+.env.testing
+
+# Build
+build/
+dist/
+
+# Temporary files
+tmp/
+temp/
+
+# LocalStack
+.localstack/
+
+# AWS
+.aws/
+
+# Test files
+.phpunit.result.cache

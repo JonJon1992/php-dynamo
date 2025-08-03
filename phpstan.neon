@@ -1,0 +1,11 @@
+parameters:
+    level: 8
+    paths:
+        - lib
+        - tests
+    excludePaths:
+        - examples
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false
+    treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: false 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<phpdoc>
+    <title>PHP Dynamo Library</title>
+    <description>Uma biblioteca PHP moderna e limpa para trabalhar com Amazon DynamoDB</description>
+    <parse>
+        <target>lib</target>
+        <encoding>utf8</encoding>
+        <markers>
+            <marker>TODO</marker>
+            <marker>FIXME</marker>
+        </markers>
+        <extensions>
+            <extension>php</extension>
+        </extensions>
+    </parse>
+    <transform>
+        <target>docs</target>
+        <template>clean</template>
+    </transform>
+    <transform>
+        <target>docs</target>
+        <template>clean</template>
+        <output>html</output>
+    </transform>
+</phpdoc> 
