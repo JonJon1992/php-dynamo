@@ -1,24 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jonjon\PhpDynamo\Util;
 
 class DynamoConfig
 {
-    protected string $key;
-    protected string $secret;
-    protected string $region;
-    protected ?string $endpoint;
-
     public function __construct(
-        string $key = 'test',
-        string $secret = 'test',
-        string $region = 'us-east-1',
-        ?string $endpoint = null
+        protected readonly string $key = 'test',
+        protected readonly string $secret = 'test',
+        protected readonly string $region = 'us-east-1',
+        protected readonly ?string $endpoint = null
     ) {
-        $this->key = $key;
-        $this->secret = $secret;
-        $this->region = $region;
-        $this->endpoint = $endpoint;
     }
 
     public function getClientParams(): array

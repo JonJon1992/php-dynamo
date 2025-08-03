@@ -3,16 +3,19 @@
 ## [3.0.2] - 2025-08-03
 
 ### 🚀 Adicionado
-- 
+- Suporte ao PHP 8.2+ (atualizado de PHP 8.1+)
+- Melhorias de tipo usando recursos do PHP 8.2
+- Union types melhorados em métodos de retorno
 
 ### 🔧 Melhorado
-- 
+- Type hints mais precisos usando recursos do PHP 8.2
+- Melhor compatibilidade com versões mais recentes do PHP
 
 ### 🐛 Corrigido
 - 
 
 ### ⚠️ Quebrado
-- 
+- Requer PHP 8.2+ (anteriormente PHP 8.1+)
 
 ---
 
@@ -42,7 +45,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## [3.0.0] - 2024-01-XX
 
 ### 🚀 Adicionado
-- Suporte ao PHP 8.1+ (atualizado de PHP 8.0)
+- Suporte ao PHP 8.2+ (atualizado de PHP 8.1)
 - AWS SDK atualizado para v3.350 (atualizado de v3.324)
 - Strict types em todos os arquivos
 - Type hints melhorados em todos os métodos
@@ -79,7 +82,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Erros na conversão de dados para diferentes formatos
 
 ### ⚠️ Quebrado
-- Requer PHP 8.1+ (anteriormente PHP 8.0+)
+- Requer PHP 8.2+ (anteriormente PHP 8.1+)
 - AWS SDK 3.350+ (anteriormente 3.324+)
 - Mudanças na sintaxe de atributos PHP 8
 - Alterações na estrutura de configuração
@@ -91,7 +94,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 # Verificar versão atual
 php -v
 
-# Atualizar para PHP 8.1+ se necessário
+# Atualizar para PHP 8.2+ se necessário
 ```
 
 #### 2. Atualizar dependências

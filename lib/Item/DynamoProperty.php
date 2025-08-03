@@ -10,11 +10,11 @@ use InvalidArgumentException;
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class DynamoProperty
 {
-    public string $name;
-    public ?string $type;
-    public ?string $onHydrate;
-    public ?string $onSerialize;
-    public bool $required;
+    public readonly string $name;
+    public readonly ?string $type;
+    public readonly ?string $onHydrate;
+    public readonly ?string $onSerialize;
+    public readonly bool $required;
 
     /**
      * Construtor da classe

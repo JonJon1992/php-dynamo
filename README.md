@@ -4,7 +4,7 @@ Uma biblioteca PHP moderna e limpa para trabalhar com Amazon DynamoDB, com supor
 
 ## 🚀 Características
 
-- **PHP 8.1+** - Suporte completo às funcionalidades modernas do PHP
+- **PHP 8.2+** - Suporte completo às funcionalidades modernas do PHP
 - **AWS SDK v3.350** - Versão mais recente e estável
 - **LocalStack** - Desenvolvimento local sem custos
 - **Type Safety** - Strict types e type hints em todo o código
@@ -308,7 +308,7 @@ make version
 
 ### Principais Mudanças
 
-1. **PHP 8.1+** - Requerido em vez de PHP 8.0
+1. **PHP 8.2+** - Requerido em vez de PHP 8.1
 2. **AWS SDK 3.350** - Atualizado da versão 3.324
 3. **Strict Types** - Adicionado em todos os arquivos
 4. **Type Hints** - Melhorados em todos os métodos

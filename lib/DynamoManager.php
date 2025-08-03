@@ -17,21 +17,16 @@ use RuntimeException;
 
 class DynamoManager
 {
-    protected Dynamo $dynamo;
-    protected ?string $namespace;
-    protected ?string $itemsNamespace;
-    protected DynamoTransaction $transactions;
-
     public const HYDRATE_OBJECT = 'object';
     public const HYDRATE_ARRAY = 'array';
     public const HYDRATE_STDCLASS = 'stdclass';
 
-    private function __construct(?DynamoConfig $config = null, ?string $namespace = null)
-    {
-        $this->dynamo = new Dynamo($config);
-        $this->namespace = $namespace;
-        $this->itemsNamespace = $namespace;
-        $this->transactions = new DynamoTransaction($this->dynamo);
+    private function __construct(
+        protected Dynamo $dynamo,
+        protected ?string $namespace = null,
+        protected ?string $itemsNamespace = null,
+        protected DynamoTransaction $transactions
+    ) {
     }
 
     /**
@@ -39,7 +34,9 @@ class DynamoManager
      */
     public static function create(?DynamoConfig $config = null, ?string $namespace = null): self
     {
-        return new self($config, $namespace);
+        $dynamo = new Dynamo($config);
+        $transactions = new DynamoTransaction($dynamo);
+        return new self($dynamo, $namespace, $namespace, $transactions);
     }
 
     /**
