@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.0.2] - 2025-08-03
+
+### 🚀 Adicionado
+- 
+
+### 🔧 Melhorado
+- 
+
+### 🐛 Corrigido
+- 
+
+### ⚠️ Quebrado
+- 
+
+---
+
+
 ## [3.0.1] - 2025-08-03
 
 ### 🚀 Adicionado
