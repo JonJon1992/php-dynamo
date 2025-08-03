@@ -3,16 +3,22 @@
 ## [3.1.0] - 2025-08-03
 
 ### 🚀 Adicionado
-- 
+- Suporte ao PHP 8.2+ (atualizado de PHP 8.1+)
+- Readonly properties em DynamoProperty e DynamoConfig
+- Constructor property promotion em DynamoConfig e DynamoManager
+- Melhorias de tipo usando recursos do PHP 8.2
 
 ### 🔧 Melhorado
-- 
+- Type hints mais precisos usando recursos do PHP 8.2
+- Melhor compatibilidade com versões mais recentes do PHP
+- Código mais limpo e moderno com recursos do PHP 8.2
+- Performance melhorada com readonly properties
 
 ### 🐛 Corrigido
 - 
 
 ### ⚠️ Quebrado
-- 
+- Requer PHP 8.2+ (anteriormente PHP 8.1+)
 
 ---
 
