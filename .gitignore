@@ -1,14 +1,19 @@
 # Composer
 /vendor/
-composer.phar
 composer.lock
+composer.phar
+
+# PHP
+*.php~
+*.swp
+*.swo
+*~
 
 # IDE
 .idea/
 .vscode/
-*.swp
-*.swo
-*~
+*.sublime-project
+*.sublime-workspace
 
 # OS
 .DS_Store
@@ -21,6 +26,7 @@ logs/
 # Cache
 .cache/
 .phpunit.cache/
+.phpunit.result.cache
 
 # Coverage
 coverage/
@@ -32,21 +38,20 @@ docs/
 # Environment
 .env
 .env.local
-.env.testing
+.env.*.local
 
-# Build
+# Docker
+docker-compose.override.yml
+
+# Temporary files
+*.tmp
+*.temp
+CHANGELOG.md.tmp
+
+# Build artifacts
 build/
 dist/
 
-# Temporary files
-tmp/
-temp/
-
-# LocalStack
-.localstack/
-
-# AWS
-.aws/
-
-# Test files
+# Test artifacts
+.phpunit.cache/
 .phpunit.result.cache

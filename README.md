@@ -242,6 +242,68 @@ lib/
 - `composer check` - Executar todas as verificações
 - `composer example` - Executar exemplo de uso
 
+### Comandos Make
+
+- `make test` - Executar testes
+- `make test-coverage` - Testes com cobertura
+- `make phpstan` - Análise estática
+- `make cs` - Verificar padrões de código
+- `make cs-fix` - Corrigir padrões de código
+- `make docs` - Gerar documentação
+- `make version` - Mostrar versão atual
+- `make release-patch` - Criar release patch
+- `make release-minor` - Criar release minor
+- `make release-major` - Criar release major
+
+## 🚀 Release
+
+### Criando uma Nova Versão
+
+O projeto possui um script automatizado para criar releases:
+
+```bash
+# Versão patch (0.0.x) - correções de bugs
+make release-patch
+
+# Versão minor (0.x.0) - novas funcionalidades
+make release-minor
+
+# Versão major (x.0.0) - mudanças que quebram compatibilidade
+make release-major
+
+# Ou usar o script diretamente
+./scripts/release.sh patch
+./scripts/release.sh minor
+./scripts/release.sh major
+```
+
+### O que o Script Faz
+
+1. **Validação do Ambiente**
+   - Verifica se é um repositório Git válido
+   - Confirma que não há mudanças não commitadas
+   - Valida que está na branch main
+
+2. **Execução de Testes**
+   - Roda todos os testes (`composer test`)
+   - Executa análise estática (`composer phpstan`)
+   - Verifica padrões de código (`composer cs`)
+
+3. **Atualização de Versão**
+   - Incrementa a versão no `composer.json`
+   - Atualiza o `CHANGELOG.md` com template
+
+4. **Git Operations**
+   - Faz commit das mudanças
+   - Cria tag anotada com a nova versão
+   - Faz push para o repositório remoto
+
+### Verificar Versão Atual
+
+```bash
+make version
+```
+
 ## 🔄 Migração da v2.x
 
 ### Principais Mudanças
