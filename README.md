@@ -4,8 +4,8 @@ Uma biblioteca PHP moderna e limpa para trabalhar com Amazon DynamoDB, com supor
 
 ## 🚀 Características
 
-- **PHP 8.2+** - Suporte completo às funcionalidades modernas do PHP
-- **AWS SDK v3.350** - Versão mais recente e estável
+- **PHP 8.5+** - Suporte completo às funcionalidades modernas do PHP
+- **AWS SDK v3.386+** - Versão recente e estável
 - **LocalStack** - Desenvolvimento local sem custos
 - **Type Safety** - Strict types e type hints em todo o código
 - **Query Builder** - Interface fluente para queries complexas
@@ -32,7 +32,7 @@ use Jonjon\PhpDynamo\Util\DynamoConfig;
 
 $config = new DynamoConfig(
     'test',
-    'test', 
+    'test',
     'us-east-1',
     'http://localhost:4566' // LocalStack endpoint
 );
@@ -134,12 +134,12 @@ class UserRepository extends \Jonjon\PhpDynamo\Repository\DynamoRepository
     {
         parent::__construct(User::class, $manager);
     }
-    
+
     public function findByEmail(string $email): ?User
     {
         return $this->get($email);
     }
-    
+
     public function findActiveUsers(): array
     {
         return $this->scan('active = :active', [':active' => true]);
@@ -308,8 +308,8 @@ make version
 
 ### Principais Mudanças
 
-1. **PHP 8.2+** - Requerido em vez de PHP 8.1
-2. **AWS SDK 3.350** - Atualizado da versão 3.324
+1. **PHP 8.5+** - Requerido em vez de PHP 8.1
+2. **AWS SDK 3.386+** - Atualizado da versão 3.324
 3. **Strict Types** - Adicionado em todos os arquivos
 4. **Type Hints** - Melhorados em todos os métodos
 5. **Match Expression** - Substituído switch statements
@@ -368,4 +368,4 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICE
 
 ---
 
-**Desenvolvido com ❤️ por Jonathan Braga** 
+**Desenvolvido com ❤️ por Jonathan Braga**

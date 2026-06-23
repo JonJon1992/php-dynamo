@@ -6,13 +6,16 @@ namespace Jonjon\PhpDynamo\Item;
 
 use InvalidArgumentException;
 use ReflectionClass;
-use ReflectionException;
 use ReflectionMethod;
 use ReflectionProperty;
 use stdClass;
 
 abstract class DynamoItem
 {
+    private static array $indexMethodsCache = [];
+    private static array $propertyMetadataCache = [];
+    private static array $shortNameCache = [];
+
     /**
      * Construtor da classe
      */
@@ -43,8 +46,9 @@ abstract class DynamoItem
      */
     public function itemType(): string
     {
-        $reflect = new ReflectionClass(get_class($this));
-        return $reflect->getShortName();
+        $class = get_class($this);
+
+        return self::$shortNameCache[$class] ??= (new ReflectionClass($class))->getShortName();
     }
 
     /**
@@ -55,11 +59,12 @@ abstract class DynamoItem
         $key = [
             'PK' => $this->pk(),
         ];
-        
-        if (!empty($this->sk())) {
-            $key['SK'] = $this->sk();
+
+        $sk = $this->sk();
+        if (!empty($sk)) {
+            $key['SK'] = $sk;
         }
-        
+
         return $key;
     }
 
@@ -76,11 +81,11 @@ abstract class DynamoItem
                 throw new InvalidArgumentException("JSON inválido: " . json_last_error_msg());
             }
         }
-        
+
         if (is_object($data)) {
             $this->hydrate($data);
         }
-        
+
         return $this;
     }
 
@@ -90,15 +95,11 @@ abstract class DynamoItem
     private function hydrate(stdClass $data): void
     {
         $class = get_class($this);
-        $rClass = new ReflectionClass($class);
-        $properties = $rClass->getProperties();
 
-        foreach ($properties as $rcProp) {
-            $doc = $this->getPropertyAnnotation($class, $rcProp);
-            if (!$doc) {
-                continue;
-            }
-            
+        foreach ($this->getPropertyMetadata($class) as $metadata) {
+            /** @var DynamoProperty $doc */
+            $doc = $metadata['doc'];
+
             $name = $doc->getName();
             $required = $doc->isRequired();
 
@@ -113,16 +114,10 @@ abstract class DynamoItem
             $this->check($required, $value, $name);
             $value = $this->cast($doc->getType(), $value, $name);
 
-            if ($doc->getOnHydrate()) {
-                $rMethod = new ReflectionMethod($class, $doc->getOnHydrate());
-                $rMethod->invoke($this, $value);
+            if ($metadata['hydrateMethod'] instanceof ReflectionMethod) {
+                $metadata['hydrateMethod']->invoke($this, $value);
             } else {
-                $isAccessible = $rcProp->isPublic();
-                if (!$isAccessible) {
-                    $rcProp->setAccessible(true);
-                }
-                $rcProp->setValue($this, $value);
-                $rcProp->setAccessible($isAccessible);
+                $metadata['property']->setValue($this, $value);
             }
         }
     }
@@ -141,30 +136,23 @@ abstract class DynamoItem
         // Forçar PK e SK como string
         $data->PK = (string) $this->pk();
 
-        if (!empty($this->sk())) {
-            $data->SK = (string) $this->sk();
+        $sk = $this->sk();
+        if (!empty($sk)) {
+            $data->SK = (string) $sk;
         }
-        
+
         $class = get_class($this);
-        $rClass = new ReflectionClass($class);
-        $properties = $rClass->getProperties();
 
-        foreach ($properties as $rcProp) {
-            $doc = $this->getPropertyAnnotation($class, $rcProp);
-            if (!$doc) {
-                continue;
-            }
+        foreach ($this->getPropertyMetadata($class) as $metadata) {
+            /** @var DynamoProperty $doc */
+            $doc = $metadata['doc'];
 
-            if ($doc->getOnSerialize()) {
-                $rMethod = new ReflectionMethod($class, $doc->getOnSerialize());
-                $value = $rMethod->invoke($this);
+            if ($metadata['serializeMethod'] instanceof ReflectionMethod) {
+                $value = $metadata['serializeMethod']->invoke($this);
             } else {
-                $isAccessible = $rcProp->isPublic();
-                if (!$isAccessible) {
-                    $rcProp->setAccessible(true);
-                }
-                $value = $rcProp->getValue($this);
-                $rcProp->setAccessible($isAccessible);
+                /** @var ReflectionProperty $property */
+                $property = $metadata['property'];
+                $value = $property->isInitialized($this) ? $property->getValue($this) : null;
             }
 
             $name = $doc->getName();
@@ -183,7 +171,7 @@ abstract class DynamoItem
         $isBlank = function ($value) {
             return empty($value) && !is_numeric($value) && !is_bool($value);
         };
-        
+
         if ($isBlank($value) && $required) {
             $value = !is_scalar($value) ? json_encode($value) : $value;
             throw new InvalidArgumentException("O atributo '$name' é obrigatório, recebido: '$value'");
@@ -206,22 +194,18 @@ abstract class DynamoItem
      */
     private function runIndex(stdClass $data): void
     {
-        $methods = get_class_methods(get_class($this));
+        $class = get_class($this);
+        $methods = self::$indexMethodsCache[$class] ??= $this->getIndexMethods($class);
 
         foreach ($methods as $method) {
-            $method = ucfirst($method);
-            $prefix = strtoupper(substr($method, 0, 3));
+            $index = $this->$method();
 
-            if (($prefix === 'GSI' || $prefix === 'LSI') && method_exists($this, $method)) {
-                $index = $this->$method();
+            if (is_array($index) && isset($index['PK'])) {
+                $pk = $method . 'Pk';
+                $sk = $method . 'Sk';
 
-                if (is_array($index) && isset($index['PK'])) {
-                    $pk = $method . 'Pk';
-                    $sk = $method . 'Sk';
-
-                    $data->$pk = $index['PK'];
-                    $data->$sk = $index['SK'];
-                }
+                $data->$pk = $index['PK'];
+                $data->$sk = $index['SK'];
             }
         }
     }
@@ -233,12 +217,80 @@ abstract class DynamoItem
     {
         $attributes = $property->getAttributes(DynamoProperty::class);
         if (!empty($attributes)) {
-            $attribute = $attributes[0];
-            $args = $attribute->getArguments();
-            return new DynamoProperty($args);
+            return $attributes[0]->newInstance();
         }
 
         return null;
+    }
+
+    private function getIndexMethods(string $class): array
+    {
+        $indexMethods = [];
+
+        foreach (get_class_methods($class) as $method) {
+            $method = ucfirst($method);
+            $prefix = strtoupper(substr($method, 0, 3));
+
+            if (($prefix === 'GSI' || $prefix === 'LSI') && method_exists($this, $method)) {
+                $indexMethods[] = $method;
+            }
+        }
+
+        return $indexMethods;
+    }
+
+    private function getPropertyMetadata(string $class): array
+    {
+        if (isset(self::$propertyMetadataCache[$class])) {
+            return self::$propertyMetadataCache[$class];
+        }
+
+        $metadata = [];
+        $rClass = new ReflectionClass($class);
+
+        foreach ($rClass->getProperties() as $property) {
+            $doc = $this->getPropertyAnnotation($class, $property);
+            if (!$doc) {
+                continue;
+            }
+
+            if (!$property->isPublic()) {
+                $property->setAccessible(true);
+            }
+
+            $hydrateMethod = $doc->getOnHydrate() ? new ReflectionMethod($class, $doc->getOnHydrate()) : null;
+            $serializeMethod = $doc->getOnSerialize() ? new ReflectionMethod($class, $doc->getOnSerialize()) : null;
+
+            if ($hydrateMethod instanceof ReflectionMethod && !$hydrateMethod->isPublic()) {
+                $hydrateMethod->setAccessible(true);
+            }
+
+            if ($serializeMethod instanceof ReflectionMethod && !$serializeMethod->isPublic()) {
+                $serializeMethod->setAccessible(true);
+            }
+
+            $metadata[] = [
+                'property' => $property,
+                'doc' => $doc,
+                'hydrateMethod' => $hydrateMethod,
+                'serializeMethod' => $serializeMethod,
+            ];
+        }
+
+        return self::$propertyMetadataCache[$class] = $metadata;
+    }
+
+    private function normalizeForArray($value)
+    {
+        if ($value instanceof stdClass) {
+            return $this->normalizeForArray(get_object_vars($value));
+        }
+
+        if (is_array($value)) {
+            return array_map(fn($item) => $this->normalizeForArray($item), $value);
+        }
+
+        return $value;
     }
 
     /**
@@ -246,7 +298,7 @@ abstract class DynamoItem
      */
     public function toArray(): array
     {
-        return json_decode(json_encode($this->serialize(), JSON_UNESCAPED_SLASHES), true);
+        return $this->normalizeForArray($this->serialize());
     }
 
     /**

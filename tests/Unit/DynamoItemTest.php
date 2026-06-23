@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use Examples\User;
+use Jonjon\PhpDynamo\Item\DynamoProperty;
 use PHPUnit\Framework\TestCase;
 
 class DynamoItemTest extends TestCase
@@ -37,14 +38,14 @@ class DynamoItemTest extends TestCase
     public function testUserPk(): void
     {
         $user = new User(['email' => 'test@example.com', 'name' => 'Test User']);
-        
+
         $this->assertEquals('USER#test@example.com', $user->pk());
     }
 
     public function testUserSk(): void
     {
         $user = new User(['email' => 'test@example.com', 'name' => 'Test User']);
-        
+
         $this->assertEquals('PROFILE#test@example.com', $user->sk());
     }
 
@@ -52,7 +53,7 @@ class DynamoItemTest extends TestCase
     {
         $user = new User(['email' => 'test@example.com', 'name' => 'Test User']);
         $key = $user->getKey();
-        
+
         $this->assertArrayHasKey('PK', $key);
         $this->assertArrayHasKey('SK', $key);
         $this->assertEquals('USER#test@example.com', $key['PK']);
@@ -62,7 +63,7 @@ class DynamoItemTest extends TestCase
     public function testUserItemType(): void
     {
         $user = new User();
-        
+
         $this->assertEquals('User', $user->itemType());
     }
 
@@ -115,7 +116,7 @@ class DynamoItemTest extends TestCase
 
         $this->assertIsString($json);
         $this->assertNotEmpty($json);
-        
+
         $decoded = json_decode($json, true);
         $this->assertIsArray($decoded);
         $this->assertArrayHasKey('email', $decoded);
@@ -150,10 +151,10 @@ class DynamoItemTest extends TestCase
     {
         $user = new User(['email' => 'test@example.com', 'name' => 'Test User']);
         $originalUpdatedAt = $user->getUpdatedAt();
-        
+
         sleep(1); // Garantir que o timestamp será diferente
         $user->touch();
-        
+
         $this->assertNotEquals($originalUpdatedAt, $user->getUpdatedAt());
     }
 
@@ -185,4 +186,13 @@ class DynamoItemTest extends TestCase
         $this->assertArrayNotHasKey('age', $basicInfo);
         $this->assertEquals('test@example.com', $basicInfo['email']);
     }
-} 
+
+    public function testDynamoPropertyCanBeCreatedWithDirectArguments(): void
+    {
+        $property = new DynamoProperty('email', 'string', required: true);
+
+        $this->assertEquals('email', $property->getName());
+        $this->assertEquals('string', $property->getType());
+        $this->assertTrue($property->isRequired());
+    }
+}

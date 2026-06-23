@@ -183,7 +183,8 @@ class DynamoQueryBuilder
             $this->attributes,
             $this->names,
             $this->params,
-            $this->class
+            $this->class,
+            $hydrate
         );
 
         $this->lastKey = $result['lastKey'];
@@ -218,13 +219,13 @@ class DynamoQueryBuilder
     {
         $reflect = new ReflectionClass($this->class);
         $itemType = $reflect->getShortName();
-        
+
         $filterClass = ['ItemType = :filterItemClass'];
-        
+
         if ($this->filterExpression) {
             $filterClass[] = "({$this->filterExpression})";
         }
-        
+
         $this->filterExpression = implode(' AND ', $filterClass);
         $this->addValue(':filterItemClass', $itemType);
     }
@@ -242,7 +243,7 @@ class DynamoQueryBuilder
         $this->params = [];
         $this->lastKey = null;
         $this->items = [];
-        
+
         return $this;
     }
 }

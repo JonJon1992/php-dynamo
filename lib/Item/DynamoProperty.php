@@ -19,8 +19,22 @@ class DynamoProperty
     /**
      * Construtor da classe
      */
-    public function __construct(array $values)
+    public function __construct(
+        array|string $name,
+        ?string $type = null,
+        ?string $onHydrate = null,
+        ?string $onSerialize = null,
+        bool $required = false
+    )
     {
+        $values = is_array($name) ? $name : [
+            'name' => $name,
+            'type' => $type,
+            'onHydrate' => $onHydrate,
+            'onSerialize' => $onSerialize,
+            'required' => $required
+        ];
+
         if (!isset($values['name'])) {
             throw new InvalidArgumentException("O atributo 'name' é obrigatório.");
         }

@@ -23,9 +23,9 @@ class DynamoManager
 
     private function __construct(
         protected Dynamo $dynamo,
+        protected DynamoTransaction $transactions,
         protected ?string $namespace = null,
-        protected ?string $itemsNamespace = null,
-        protected DynamoTransaction $transactions
+        protected ?string $itemsNamespace = null
     ) {
     }
 
@@ -36,7 +36,7 @@ class DynamoManager
     {
         $dynamo = new Dynamo($config);
         $transactions = new DynamoTransaction($dynamo);
-        return new self($dynamo, $namespace, $namespace, $transactions);
+        return new self($dynamo, $transactions, $namespace, $namespace);
     }
 
     /**
@@ -50,7 +50,7 @@ class DynamoManager
         ?string $namespace = null
     ): self {
         $config = new DynamoConfig($key, $secret, $region, $endpoint);
-        return new self($config, $namespace);
+        return self::create($config, $namespace);
     }
 
     /**
@@ -89,7 +89,8 @@ class DynamoManager
         ?string $projectionExpression = null,
         ?array $expressionAttributeNames = null,
         ?array $params = [],
-        ?string $class = null
+        ?string $class = null,
+        string $hydrate = self::HYDRATE_OBJECT
     ): array {
         $result = $this->dynamo->query(
             $tableName,
@@ -101,7 +102,7 @@ class DynamoManager
             $params
         );
 
-        $result['items'] = $this->convertItems($result['items'], self::HYDRATE_OBJECT, $class);
+        $result['items'] = $this->convertItems($result['items'], $hydrate, $class);
         return $result;
     }
 
@@ -113,10 +114,11 @@ class DynamoManager
         ?string $filterExpression = null,
         ?array $values = null,
         ?array $params = [],
-        ?string $class = null
+        ?string $class = null,
+        string $hydrate = self::HYDRATE_OBJECT
     ): array {
         $result = $this->dynamo->scan($tableName, $filterExpression, $values, $params);
-        $result['items'] = $this->convertItems($result['items'], self::HYDRATE_OBJECT, $class);
+        $result['items'] = $this->convertItems($result['items'], $hydrate, $class);
         return $result;
     }
 
@@ -129,12 +131,15 @@ class DynamoManager
             return null;
         }
 
-        $tableName = $items[0]::getTableName();
-        
         foreach ($items as $item) {
             if (!$item instanceof DynamoItem) {
                 throw new InvalidArgumentException("Todos os itens devem ser instâncias de DynamoItem");
             }
+        }
+
+        $tableName = $items[0]::getTableName();
+
+        foreach ($items as $item) {
             if ($item::getTableName() !== $tableName) {
                 throw new InvalidArgumentException("Items de tabelas diferentes não são permitidos");
             }
@@ -156,12 +161,15 @@ class DynamoManager
             return null;
         }
 
-        $tableName = $items[0]::getTableName();
-        
         foreach ($items as $item) {
             if (!$item instanceof DynamoItem) {
                 throw new InvalidArgumentException("Todos os itens devem ser instâncias de DynamoItem");
             }
+        }
+
+        $tableName = $items[0]::getTableName();
+
+        foreach ($items as $item) {
             if ($item::getTableName() !== $tableName) {
                 throw new InvalidArgumentException("Items de tabelas diferentes não são permitidos");
             }

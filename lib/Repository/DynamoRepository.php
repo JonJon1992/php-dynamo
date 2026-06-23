@@ -33,7 +33,7 @@ abstract class DynamoRepository
         if ($sk) {
             $key['SK'] = $sk;
         }
-        
+
         $item = $this->manager->getDynamo()->getItem($this->table, $key);
         return $this->manager->convert($item, $hydrate, $this->itemClass);
     }
@@ -58,9 +58,10 @@ abstract class DynamoRepository
             $attributes,
             $names,
             $params,
-            $this->itemClass
+            $this->itemClass,
+            $hydrate
         );
-        
+
         return $result;
     }
 
@@ -78,9 +79,10 @@ abstract class DynamoRepository
             $filterExpression,
             $values,
             $params,
-            $this->itemClass
+            $this->itemClass,
+            $hydrate
         );
-        
+
         return $result;
     }
 
