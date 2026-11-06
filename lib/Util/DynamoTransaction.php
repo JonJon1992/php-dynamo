@@ -7,11 +7,16 @@ namespace Jonjon\PhpDynamo\Util;
 use Aws\Result;
 use Jonjon\PhpDynamo\Item\DynamoItem;
 use OverflowException;
-use ReflectionException;
 
 class DynamoTransaction
 {
+    /**
+     * Limite do TransactWriteItems no DynamoDB
+     */
+    public const MAX_OPERATIONS = 100;
+
     protected Dynamo $dynamo;
+    /** @var list<array<string, array<string, mixed>>> */
     protected array $operations = [];
 
     public function __construct(Dynamo $dynamo)
@@ -22,7 +27,7 @@ class DynamoTransaction
     /**
      * Adiciona uma operação PUT
      */
-    public function put(string $table, $doc): static
+    public function put(string $table, array|object|string $doc): static
     {
         $this->operations[] = [
             'Put' => $this->dynamo->toPrepare($table, $doc)
@@ -49,22 +54,37 @@ class DynamoTransaction
 
     /**
      * Adiciona uma operação DELETE
+     *
+     * @param array<string, string>|null $names
      */
-    public function delete(string $table, array $key, ?string $condition = null, ?array $values = null): static
-    {
+    public function delete(
+        string $table,
+        array $key,
+        ?string $condition = null,
+        ?array $values = null,
+        ?array $names = null
+    ): static {
         $this->operations[] = [
-            'Delete' => $this->dynamo->toPrepareDelete($table, $key, $condition, $values)
+            'Delete' => $this->dynamo->toPrepareDelete($table, $key, $condition, $values, $names)
         ];
         return $this;
     }
 
     /**
      * Adiciona uma operação UPDATE
+     *
+     * @param array<string, string>|null $names
      */
-    public function update(string $table, array $key, string $updateExpression, array $values, ?string $condition = null): static
-    {
+    public function update(
+        string $table,
+        array $key,
+        string $updateExpression,
+        array $values,
+        ?string $condition = null,
+        ?array $names = null
+    ): static {
         $this->operations[] = [
-            'Update' => $this->dynamo->toPrepareUpdate($table, $updateExpression, $values, $key, $condition)
+            'Update' => $this->dynamo->toPrepareUpdate($table, $updateExpression, $values, $key, $condition, $names)
         ];
         return $this;
     }
@@ -74,18 +94,20 @@ class DynamoTransaction
      */
     public function flush(): Result
     {
-        if (count($this->operations) > 25) {
-            throw new OverflowException('Limite de 25 operações por transação excedido.');
+        if (count($this->operations) > self::MAX_OPERATIONS) {
+            throw new OverflowException(
+                sprintf('Limite de %d operações por transação excedido.', self::MAX_OPERATIONS)
+            );
         }
-        
+
         if (empty($this->operations)) {
             throw new OverflowException('Nenhuma operação para executar.');
         }
-        
+
         $result = $this->dynamo->getClient()->transactWriteItems([
             'TransactItems' => $this->operations
         ]);
-        
+
         $this->operations = [];
 
         return $result;

@@ -1,37 +1,25 @@
 <?xml version="1.0"?>
 <ruleset name="PHP Dynamo">
     <description>PHP CodeSniffer rules for PHP Dynamo library</description>
-    
+
     <file>lib</file>
     <file>tests</file>
     <file>examples</file>
-    
+
     <exclude-pattern>vendor</exclude-pattern>
     <exclude-pattern>coverage</exclude-pattern>
-    
-    <rule ref="PSR12"/>
-    
+
+    <arg name="extensions" value="php"/>
+
+    <rule ref="PSR12">
+        <!-- O Git normaliza as quebras de linha (core.autocrlf); no Windows o checkout usa CRLF. -->
+        <exclude name="Generic.Files.LineEndings"/>
+    </rule>
+
     <rule ref="Generic.Files.LineLength">
         <properties>
             <property name="lineLimit" value="120"/>
             <property name="absoluteLineLimit" value="150"/>
         </properties>
     </rule>
-    
-    <rule ref="Squiz.Commenting.FunctionComment">
-        <exclude name="Squiz.Commenting.FunctionComment.MissingParamComment"/>
-        <exclude name="Squiz.Commenting.FunctionComment.MissingReturn"/>
-    </rule>
-    
-    <rule ref="Squiz.Commenting.ClassComment">
-        <exclude name="Squiz.Commenting.ClassComment.Missing"/>
-    </rule>
-    
-    <rule ref="Generic.CodeAnalysis.UnusedFunctionParameter">
-        <exclude name="Generic.CodeAnalysis.UnusedFunctionParameter.FoundInExtendedClass"/>
-    </rule>
-    
-    <rule ref="Generic.CodeAnalysis.UnusedFunctionParameter">
-        <exclude name="Generic.CodeAnalysis.UnusedFunctionParameter.FoundInImplementedInterface"/>
-    </rule>
-</ruleset> 
+</ruleset>

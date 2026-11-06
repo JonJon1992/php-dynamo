@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Jonjon\PhpDynamo;
 
+use Jonjon\PhpDynamo\Item\DynamoItem;
+use LogicException;
 use ReflectionClass;
 
 class DynamoQueryBuilder
 {
     private string $table;
+    /** @var class-string<DynamoItem> */
     private string $class;
     private DynamoManager $manager;
     private ?string $keyConditionExpression = null;
@@ -20,6 +23,9 @@ class DynamoQueryBuilder
     private ?array $lastKey = null;
     private array $items = [];
 
+    /**
+     * @param class-string<DynamoItem> $class
+     */
     public function __construct(DynamoManager $manager, string $class)
     {
         $this->table = $class::getTableName();
@@ -171,13 +177,16 @@ class DynamoQueryBuilder
      */
     public function getResult(string $hydrate = DynamoManager::HYDRATE_OBJECT, bool $filterItem = false): array
     {
+        $keyCondition = $this->keyConditionExpression
+            ?? throw new LogicException('Defina a condição de chave com setCondition() antes de executar a query.');
+
         if ($filterItem) {
             $this->addItemTypeFilter();
         }
 
         $result = $this->manager->query(
             $this->table,
-            $this->keyConditionExpression,
+            $keyCondition,
             $this->values,
             $this->filterExpression,
             $this->attributes,
@@ -205,7 +214,7 @@ class DynamoQueryBuilder
     /**
      * Executa a query e retorna o primeiro item
      */
-    public function getFirstResult(string $hydrate = DynamoManager::HYDRATE_OBJECT, bool $filterItem = false)
+    public function getFirstResult(string $hydrate = DynamoManager::HYDRATE_OBJECT, bool $filterItem = false): mixed
     {
         $this->setLimit(1);
         $result = $this->getResult($hydrate, $filterItem);
@@ -243,7 +252,6 @@ class DynamoQueryBuilder
         $this->params = [];
         $this->lastKey = null;
         $this->items = [];
-
         return $this;
     }
 }

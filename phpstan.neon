@@ -3,9 +3,15 @@ parameters:
     paths:
         - lib
         - tests
-    excludePaths:
-        - examples
-    checkMissingIterableValueType: false
-    checkGenericClassInNonGenericObjectType: false
     treatPhpDocTypesAsCertain: false
-    reportUnmatchedIgnoredErrors: false 
+    ignoreErrors:
+        # Equivalente no PHPStan 2 da antiga opção checkMissingIterableValueType: false.
+        - identifier: missingType.iterableValue
+        # DynamoUtil é API pública para quem usa a biblioteca, mas não é usado internamente.
+        - identifier: trait.unused
+          path: lib/Util/DynamoUtil.php
+        # Propriedades com #[DynamoProperty] são escritas via reflection na hidratação.
+        - identifier: property.onlyRead
+          path: tests/Support/*
+        - identifier: property.unusedType
+          path: tests/Support/*

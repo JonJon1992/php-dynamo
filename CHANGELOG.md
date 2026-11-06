@@ -1,5 +1,50 @@
 # Changelog
 
+Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
+
+O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
+e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
+
+## [4.0.0] - Não lançada
+
+### ⚠️ Quebrado
+- `DynamoConfig` sem credenciais não usa mais `test/test`: o SDK passa a usar a cadeia padrão de credenciais da AWS (variáveis de ambiente, `~/.aws`, IAM Role de EC2/ECS/EKS/Lambda). Para ambiente local, use `DynamoConfig::local()`. `getKey()` e `getSecret()` agora retornam `?string`.
+- `DynamoManager::create()` sem configuração usa `DynamoConfig::fromEnvironment()`.
+- `Dynamo::putItem()` não embrulha mais as exceções: erros do DynamoDB chegam como `DynamoDbException` (antes era uma `Exception` genérica com o item inteiro na mensagem). Item sem `PK` lança `InvalidArgumentException`.
+- Operações em lote (`insertItems`, `deleteItems`, `batchWriteItems`, `batchDeleteItems`) enviam tudo antes de retornar e lançam `RuntimeException` quando o DynamoDB rejeita uma requisição. Para tratar os erros você mesmo, passe o callback `error` em `$config`.
+- `Dynamo::getItem()` retorna `?array`; `DynamoManager::find()` retorna `?DynamoItem`.
+- `DynamoManager::itemToDynamoItem()` recusa classes que não estendem `DynamoItem`.
+- `DynamoQueryBuilder::getResult()` lança `LogicException` se `setCondition()` não foi chamado.
+- O namespace `Examples\` saiu do autoload de produção (agora está em `autoload-dev`).
+
+### 🚀 Adicionado
+- `DynamoConfig`: `sessionToken`, `clientOptions` (repassadas ao `DynamoDbClient`), `DynamoConfig::local()` e `DynamoConfig::fromEnvironment()` (`DYNAMODB_ENDPOINT`, `AWS_REGION`).
+- `DynamoManager::getQueryBuilder(Classe::class)`.
+- `update()` aceita expressões com `SET`, `REMOVE`, `ADD` ou `DELETE` (sem cláusula, continua assumindo `SET`) e `ExpressionAttributeNames`; `delete()` também aceita `ExpressionAttributeNames`.
+- Transações com até 100 operações (limite atual do DynamoDB).
+- `docker-compose.yml` com DynamoDB Local e DynamoDB Admin.
+- Testes unitários com cliente AWS simulado e testes de integração contra um DynamoDB real.
+- `scripts/release.sh` aceita uma versão explícita (`./scripts/release.sh 4.0.0`).
+
+### 🐛 Corrigido
+- `insertItems`/`deleteItems` não enviavam lotes com menos de 25 itens (nem o resto de lotes maiores): os itens se perdiam sem erro.
+- Falhas de `BatchWriteItem` eram ignoradas silenciosamente.
+- O mapeamento de PK/SK para os nomes reais das chaves só acontecia no `putItem`; agora vale para get, update, delete, lote e transação.
+- O mapeamento removia o `PK` do item em tabelas cuja chave de partição já se chama `PK` mas a sort key tem outro nome (ou não existe). Agora usa o `KeyType` em vez da posição no `KeySchema`.
+- `DynamoItem` lançava `TypeError` ao hidratar a partir de objetos que não fossem `stdClass`.
+- Avisos de descontinuação no PHP 8.5 (`setAccessible()`).
+- Exemplo: `getQueryBuilder()` inexistente, `findByEmail()` com chave errada e datas não inicializadas no `User`.
+
+### 🔧 Ferramentas
+- PHP 8.2+ (testado no 8.5). PHPUnit `^11.5 || ^12.0 || ^13.0`, para instalar as dependências de desenvolvimento em qualquer PHP suportado.
+- `phpdocumentor/phpdocumentor` saiu do `require-dev`: dependia de uma versão do `league/flysystem` com alertas de segurança e impedia o `composer install`. Use o phar ou a imagem Docker do phpDocumentor.
+- Configuração do PHPStan migrada para a v2 (nível 8 sem erros) e do PHPUnit para o formato atual.
+- phpcs: PSR-12 + limite de linha (removidas as regras que exigiam docblock em todo método).
+- `scripts/release.sh` roda `composer check` antes de criar o release, e a entrada nova do changelog vai para o lugar certo.
+- Removidos os scripts do Composer que apontavam para arquivos inexistentes (`setup:local`, `setup:production`, `test:setup`).
+
+---
+
 ## [3.1.0] - 2025-08-03
 
 ### 🚀 Adicionado
@@ -13,9 +58,6 @@
 - Melhor compatibilidade com versões mais recentes do PHP
 - Código mais limpo e moderno com recursos do PHP 8.2
 - Performance melhorada com readonly properties
-
-### 🐛 Corrigido
-- 
 
 ### ⚠️ Quebrado
 - Requer PHP 8.2+ (anteriormente PHP 8.1+)
@@ -34,9 +76,6 @@
 - Type hints mais precisos usando recursos do PHP 8.2
 - Melhor compatibilidade com versões mais recentes do PHP
 
-### 🐛 Corrigido
-- 
-
 ### ⚠️ Quebrado
 - Requer PHP 8.2+ (anteriormente PHP 8.1+)
 
@@ -45,25 +84,9 @@
 
 ## [3.0.1] - 2025-08-03
 
-### 🚀 Adicionado
-- 
-
-### 🔧 Melhorado
-- 
-
-### 🐛 Corrigido
-- 
-
-### ⚠️ Quebrado
-- 
+- Sem alterações registradas.
 
 ---
-
-
-Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
-
-O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
-e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [3.0.0] - 2024-01-XX
 

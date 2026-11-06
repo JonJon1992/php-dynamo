@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Jonjon\PhpDynamo\Repository;
 
+use Aws\Result;
 use Jonjon\PhpDynamo\DynamoManager;
 use Jonjon\PhpDynamo\DynamoQueryBuilder;
 use Jonjon\PhpDynamo\Item\DynamoItem;
@@ -12,8 +13,12 @@ abstract class DynamoRepository
 {
     private DynamoManager $manager;
     private string $table;
+    /** @var class-string<DynamoItem> */
     private string $itemClass;
 
+    /**
+     * @param class-string<DynamoItem> $itemClass
+     */
     public function __construct(string $itemClass, DynamoManager $manager)
     {
         $this->manager = $manager;
@@ -28,7 +33,7 @@ abstract class DynamoRepository
         string $pk,
         ?string $sk = null,
         string $hydrate = DynamoManager::HYDRATE_OBJECT
-    ) {
+    ): mixed {
         $key = ['PK' => $pk];
         if ($sk) {
             $key['SK'] = $sk;
@@ -89,7 +94,7 @@ abstract class DynamoRepository
     /**
      * Salva um item
      */
-    public function save(DynamoItem $item): \Aws\Result
+    public function save(DynamoItem $item): Result
     {
         return $this->manager->save($item);
     }
@@ -97,7 +102,7 @@ abstract class DynamoRepository
     /**
      * Remove um item
      */
-    public function delete(DynamoItem $item): \Aws\Result
+    public function delete(DynamoItem $item): Result
     {
         return $this->manager->delete($item);
     }
@@ -105,7 +110,7 @@ abstract class DynamoRepository
     /**
      * Busca um item pela chave
      */
-    public function findByKey(array $key, string $hydrate = DynamoManager::HYDRATE_OBJECT)
+    public function findByKey(array $key, string $hydrate = DynamoManager::HYDRATE_OBJECT): mixed
     {
         $item = $this->manager->getDynamo()->getItem($this->table, $key);
         return $this->manager->convert($item, $hydrate, $this->itemClass);
@@ -127,7 +132,7 @@ abstract class DynamoRepository
         array $values,
         ?string $filterExpression = null,
         string $hydrate = DynamoManager::HYDRATE_OBJECT
-    ) {
+    ): mixed {
         $params = ['Limit' => 1];
         $result = $this->query($keyCondition, $values, $filterExpression, null, null, $params, $hydrate);
         return $result['items'][0] ?? null;

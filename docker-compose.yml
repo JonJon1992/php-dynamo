@@ -1,1 +1,26 @@
- 
+# Ambiente local para desenvolvimento e testes de integração.
+#
+#   docker compose up -d
+#   DYNAMODB_ENDPOINT=http://localhost:8000 composer test:integration
+#
+# Usa o DynamoDB Local oficial da AWS, que não exige conta nem token.
+# Para usar LocalStack (exige LOCALSTACK_AUTH_TOKEN nas versões atuais),
+# aponte DYNAMODB_ENDPOINT para http://localhost:4566.
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:3.3.2
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+    ports:
+      - "8000:8000"
+
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin:5.2.0
+    environment:
+      DYNAMO_ENDPOINT: http://dynamodb:8000
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    ports:
+      - "8001:8001"
+    depends_on:
+      - dynamodb

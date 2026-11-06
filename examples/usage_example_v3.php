@@ -5,28 +5,20 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Examples\User;
+use Examples\UserRepository;
 use Jonjon\PhpDynamo\DynamoManager;
 use Jonjon\PhpDynamo\Util\DynamoConfig;
 
-echo "=== PHP Dynamo Library v3.0.0 - Exemplo de Uso ===\n\n";
+echo "=== PHP Dynamo v4.0.0 - Exemplo de Uso ===\n\n";
 
 // 1. Configuração
 echo "1. Configurando o DynamoManager...\n";
 
-// Para ambiente local (LocalStack)
-$config = new DynamoConfig(
-    'test',
-    'test',
-    'us-east-1',
-    'http://localhost:4566' // LocalStack endpoint
-);
+// Ambiente local (LocalStack em http://localhost:4566, ou o valor de DYNAMODB_ENDPOINT)
+$config = DynamoConfig::local(getenv('DYNAMODB_ENDPOINT') ?: DynamoConfig::LOCAL_ENDPOINT);
 
-// Para produção AWS
-// $config = new DynamoConfig(
-//     $_ENV['AWS_ACCESS_KEY_ID'],
-//     $_ENV['AWS_SECRET_ACCESS_KEY'],
-//     $_ENV['AWS_REGION']
-// );
+// Produção AWS: as credenciais vêm da cadeia padrão do SDK (IAM Role, variáveis de ambiente, ~/.aws)
+// $config = new DynamoConfig(region: 'sa-east-1');
 
 $manager = DynamoManager::create($config);
 
@@ -40,7 +32,7 @@ $tableExists = $manager->getDynamo()->tableExists($tableName);
 
 if (!$tableExists) {
     echo "Criando tabela '$tableName'...\n";
-    
+
     $tableSettings = [
         'TableName' => $tableName,
         'KeySchema' => [
@@ -65,14 +57,14 @@ if (!$tableExists) {
         ],
         'BillingMode' => 'PAY_PER_REQUEST'
     ];
-    
+
     $result = $manager->createTable($tableSettings);
-    
+
     if (isset($result['error'])) {
         echo "Erro ao criar tabela: " . $result['error'] . "\n";
         exit(1);
     }
-    
+
     echo "Aguardando tabela ficar ativa...\n";
     $manager->getDynamo()->waitForTableActive($tableName);
 }
@@ -108,7 +100,7 @@ echo "5. Buscando usuário...\n";
 
 try {
     $foundUser = $manager->find($tableName, $user->getKey(), User::class);
-    
+
     if ($foundUser) {
         echo "✓ Usuário encontrado:\n";
         echo "  - Nome: " . $foundUser->getName() . "\n";
@@ -144,7 +136,7 @@ try {
 // 7. Usar Query Builder
 echo "7. Usando Query Builder...\n";
 
-$queryBuilder = $manager->getQueryBuilder();
+$queryBuilder = $manager->getQueryBuilder(User::class);
 $queryBuilder->setCondition('PK = :pk')
              ->addValue(':pk', 'USER#john.doe@example.com')
              ->setLimit(10);
@@ -152,29 +144,8 @@ $queryBuilder->setCondition('PK = :pk')
 $result = $queryBuilder->getResult();
 echo "✓ Query executada - " . count($result['items']) . " itens encontrados\n\n";
 
-// 8. Usar Repository
+// 8. Usar Repository (veja examples/UserRepository.php)
 echo "8. Usando Repository...\n";
-
-class UserRepository extends \Jonjon\PhpDynamo\Repository\DynamoRepository
-{
-    public function __construct(DynamoManager $manager)
-    {
-        parent::__construct(User::class, $manager);
-    }
-    
-    public function findByEmail(string $email): ?User
-    {
-        return $this->get($email);
-    }
-    
-    public function findActiveUsers(): array
-    {
-        return $this->scan(
-            'active = :active',
-            [':active' => true]
-        );
-    }
-}
 
 $userRepository = new UserRepository($manager);
 
@@ -233,7 +204,7 @@ if ($user) {
     // Para array
     $userArray = $user->toArray();
     echo "✓ Convertido para array: " . count($userArray) . " campos\n";
-    
+
     // Para JSON
     $userJson = $user->toJson();
     echo "✓ Convertido para JSON: " . strlen($userJson) . " caracteres\n\n";
@@ -246,4 +217,4 @@ $tables = $manager->listTables();
 echo "✓ Tabelas disponíveis: " . implode(', ', $tables['tables']) . "\n\n";
 
 echo "=== Exemplo concluído com sucesso! ===\n";
-echo "A biblioteca PHP Dynamo v3.0.0 está funcionando corretamente.\n"; 
+echo "A biblioteca PHP Dynamo v4.0.0 está funcionando corretamente.\n";

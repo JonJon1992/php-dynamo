@@ -22,25 +22,24 @@
     ],
     "autoload": {
         "psr-4": {
-            "Jonjon\\PhpDynamo\\": "lib",
-            "Examples\\": "examples"
+            "Jonjon\\PhpDynamo\\": "lib"
         }
     },
     "autoload-dev": {
         "psr-4": {
+            "Examples\\": "examples",
             "Tests\\": "tests"
         }
     },
     "require": {
-        "php": ">=8.5",
+        "php": ">=8.2",
         "aws/aws-sdk-php": "^3.386",
         "ext-json": "*"
     },
     "require-dev": {
-        "phpunit/phpunit": "^13.2",
-        "phpstan/phpstan": "^2.2",
+        "phpunit/phpunit": "^11.5 || ^12.0 || ^13.0",
+        "phpstan/phpstan": "^2.1",
         "squizlabs/php_codesniffer": "^4.0",
-        "phpdocumentor/phpdocumentor": "^3.10",
         "roave/security-advisories": "dev-latest"
     },
     "config": {
@@ -60,10 +59,7 @@
         "cs": "phpcs lib tests",
         "cs:fix": "phpcbf lib tests",
         "docs": "phpdoc",
-        "setup:local": "php scripts/setup-env.php local",
-        "setup:production": "php scripts/setup-env.php production",
         "example": "php examples/usage_example_v3.php",
-        "test:setup": "php scripts/test-setup.php",
         "check": [
             "@cs",
             "@phpstan",

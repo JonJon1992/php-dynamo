@@ -31,8 +31,8 @@ class DynamoItemTest extends TestCase
     {
         $user = new User();
 
-        $this->assertNotNull($user->getCreatedAt());
-        $this->assertNotNull($user->getUpdatedAt());
+        $this->assertNotEmpty($user->getCreatedAt());
+        $this->assertNotEmpty($user->getUpdatedAt());
     }
 
     public function testUserPk(): void
@@ -82,12 +82,12 @@ class DynamoItemTest extends TestCase
 
         $serialized = $user->serialize();
 
-        $this->assertObjectHasAttribute('PK', $serialized);
-        $this->assertObjectHasAttribute('SK', $serialized);
-        $this->assertObjectHasAttribute('email', $serialized);
-        $this->assertObjectHasAttribute('name', $serialized);
-        $this->assertObjectHasAttribute('age', $serialized);
-        $this->assertObjectHasAttribute('ItemType', $serialized);
+        $this->assertObjectHasProperty('PK', $serialized);
+        $this->assertObjectHasProperty('SK', $serialized);
+        $this->assertObjectHasProperty('email', $serialized);
+        $this->assertObjectHasProperty('name', $serialized);
+        $this->assertObjectHasProperty('age', $serialized);
+        $this->assertObjectHasProperty('ItemType', $serialized);
     }
 
     public function testUserToArray(): void
@@ -99,7 +99,6 @@ class DynamoItemTest extends TestCase
 
         $array = $user->toArray();
 
-        $this->assertIsArray($array);
         $this->assertArrayHasKey('PK', $array);
         $this->assertArrayHasKey('email', $array);
         $this->assertArrayHasKey('name', $array);
@@ -114,7 +113,6 @@ class DynamoItemTest extends TestCase
 
         $json = $user->toJson();
 
-        $this->assertIsString($json);
         $this->assertNotEmpty($json);
 
         $decoded = json_decode($json, true);
@@ -150,12 +148,30 @@ class DynamoItemTest extends TestCase
     public function testUserTouch(): void
     {
         $user = new User(['email' => 'test@example.com', 'name' => 'Test User']);
-        $originalUpdatedAt = $user->getUpdatedAt();
+        $user->setUpdatedAt('2000-01-01 00:00:00');
 
-        sleep(1); // Garantir que o timestamp será diferente
         $user->touch();
 
-        $this->assertNotEquals($originalUpdatedAt, $user->getUpdatedAt());
+        $this->assertNotEquals('2000-01-01 00:00:00', $user->getUpdatedAt());
+    }
+
+    public function testUserHydratedWithoutTimestampsStillHasThem(): void
+    {
+        $user = new User(['email' => 'test@example.com', 'name' => 'Test User']);
+
+        $this->assertNotEmpty($user->getCreatedAt());
+        $this->assertNotEmpty($user->getUpdatedAt());
+    }
+
+    public function testUserHydratedFromDatabaseKeepsStoredTimestamps(): void
+    {
+        $user = new User([
+            'email' => 'test@example.com',
+            'name' => 'Test User',
+            'created_at' => '2020-05-01 10:00:00',
+        ]);
+
+        $this->assertSame('2020-05-01 10:00:00', $user->getCreatedAt());
     }
 
     public function testUserIsAdult(): void

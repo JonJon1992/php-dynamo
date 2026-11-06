@@ -11,8 +11,6 @@ use Jonjon\PhpDynamo\Item\DynamoItem;
 use Jonjon\PhpDynamo\Util\Dynamo;
 use Jonjon\PhpDynamo\Util\DynamoConfig;
 use Jonjon\PhpDynamo\Util\DynamoTransaction;
-use ReflectionClass;
-use ReflectionException;
 use RuntimeException;
 
 class DynamoManager
@@ -72,7 +70,7 @@ class DynamoManager
     /**
      * Busca um item
      */
-    public function find(string $tableName, array $key, ?string $class = null)
+    public function find(string $tableName, array $key, ?string $class = null): ?DynamoItem
     {
         $item = $this->dynamo->getItem($tableName, $key);
         return $this->convert($item, self::HYDRATE_OBJECT, $class);
@@ -123,69 +121,57 @@ class DynamoManager
     }
 
     /**
-     * Insere múltiplos itens
+     * Insere múltiplos itens em lote. Os itens são enviados antes do retorno.
+     *
+     * @param DynamoItem[] $items
+     * @param array<string, mixed> $config Opções do WriteRequestBatch
      */
     public function insertItems(array $items, array $config = []): ?WriteRequestBatch
     {
-        if (empty($items)) {
+        if ($items === []) {
             return null;
         }
 
-        foreach ($items as $item) {
-            if (!$item instanceof DynamoItem) {
-                throw new InvalidArgumentException("Todos os itens devem ser instâncias de DynamoItem");
-            }
-        }
-
-        $tableName = $items[0]::getTableName();
-
-        foreach ($items as $item) {
-            if ($item::getTableName() !== $tableName) {
-                throw new InvalidArgumentException("Items de tabelas diferentes não são permitidos");
-            }
-        }
-
         return $this->dynamo->batchWriteItems(
-            $tableName,
+            $this->resolveBatchTable($items),
             array_map(fn(DynamoItem $item) => $item->serialize(), $items),
             $config
         );
     }
 
     /**
-     * Remove múltiplos itens
+     * Remove múltiplos itens em lote. As remoções são enviadas antes do retorno.
+     *
+     * @param DynamoItem[] $items
+     * @param array<string, mixed> $config Opções do WriteRequestBatch
      */
     public function deleteItems(array $items, array $config = []): ?WriteRequestBatch
     {
-        if (empty($items)) {
+        if ($items === []) {
             return null;
         }
 
-        foreach ($items as $item) {
-            if (!$item instanceof DynamoItem) {
-                throw new InvalidArgumentException("Todos os itens devem ser instâncias de DynamoItem");
-            }
-        }
-
-        $tableName = $items[0]::getTableName();
-
-        foreach ($items as $item) {
-            if ($item::getTableName() !== $tableName) {
-                throw new InvalidArgumentException("Items de tabelas diferentes não são permitidos");
-            }
-        }
-
         return $this->dynamo->batchDeleteItems(
-            $tableName,
+            $this->resolveBatchTable($items),
             array_map(fn(DynamoItem $item) => $item->getKey(), $items),
             $config
         );
     }
 
     /**
+     * Cria um query builder para a classe de item informada
+     *
+     * @param class-string<DynamoItem> $class
+     */
+    public function getQueryBuilder(string $class): DynamoQueryBuilder
+    {
+        return new DynamoQueryBuilder($this, $class);
+    }
+
+    /**
      * Converte um item para o formato especificado
      */
-    public function convert($item, string $hydrate = self::HYDRATE_OBJECT, ?string $class = null)
+    public function convert(mixed $item, string $hydrate = self::HYDRATE_OBJECT, ?string $class = null): mixed
     {
         if (empty($item)) {
             return null;
@@ -193,8 +179,12 @@ class DynamoManager
 
         return match ($hydrate) {
             self::HYDRATE_OBJECT => $this->convertToObject($item, $class),
-            self::HYDRATE_ARRAY => json_decode(json_encode($item, JSON_UNESCAPED_SLASHES), true),
-            self::HYDRATE_STDCLASS => (object)$item,
+            self::HYDRATE_ARRAY => json_decode(
+                json_encode($item, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+                true,
+                flags: JSON_THROW_ON_ERROR
+            ),
+            self::HYDRATE_STDCLASS => (object) $item,
             default => $item,
         };
     }
@@ -226,22 +216,23 @@ class DynamoManager
     /**
      * Converte um item para DynamoItem
      */
-    public function itemToDynamoItem($item, string $class): DynamoItem
+    public function itemToDynamoItem(mixed $item, string $class): DynamoItem
     {
-        try {
-            $reflect = new ReflectionClass($class);
-            return $reflect->newInstance($item);
-        } catch (ReflectionException $e) {
-            throw new RuntimeException("Erro ao criar instância da classe $class: " . $e->getMessage());
+        if (!is_a($class, DynamoItem::class, true)) {
+            throw new RuntimeException(
+                "Erro ao criar instância da classe $class: a classe não existe ou não estende DynamoItem"
+            );
         }
+
+        return new $class($item);
     }
 
     /**
      * Determina a classe do item baseado no item ou namespace
      */
-    private function getItemClassByItem($item, ?string $class): string
+    private function getItemClassByItem(mixed $item, ?string $class): string
     {
-        $item = (object)$item;
+        $item = (object) $item;
 
         if (!empty($item->ItemType) && !empty($this->itemsNamespace)) {
             return "$this->itemsNamespace\\$item->ItemType";
@@ -257,7 +248,7 @@ class DynamoManager
     /**
      * Converte item para objeto
      */
-    private function convertToObject($item, ?string $class)
+    private function convertToObject(mixed $item, ?string $class): DynamoItem
     {
         $class = $this->getItemClassByItem($item, $class);
         return $this->itemToDynamoItem($item, $class);
@@ -265,15 +256,42 @@ class DynamoManager
 
     /**
      * Atualiza um item
+     *
+     * A expressão pode começar com SET, REMOVE, ADD ou DELETE; sem cláusula, assume SET.
+     *
+     * @param array<string, string>|null $names ExpressionAttributeNames (ex.: ['#n' => 'name'])
      */
     public function update(
         string $tableName,
         array $key,
         string $updateExpression,
         array $values,
-        ?string $condition = null
+        ?string $condition = null,
+        ?array $names = null
     ): Result {
-        return $this->dynamo->updateItem($tableName, $key, $updateExpression, $values, $condition);
+        return $this->dynamo->updateItem($tableName, $key, $updateExpression, $values, $condition, $names);
+    }
+
+    /**
+     * Garante que todos são DynamoItem da mesma tabela e retorna o nome dela
+     */
+    private function resolveBatchTable(array $items): string
+    {
+        $tableName = null;
+
+        foreach ($items as $item) {
+            if (!$item instanceof DynamoItem) {
+                throw new InvalidArgumentException("Todos os itens devem ser instâncias de DynamoItem");
+            }
+
+            $tableName ??= $item::getTableName();
+
+            if ($item::getTableName() !== $tableName) {
+                throw new InvalidArgumentException("Items de tabelas diferentes não são permitidos");
+            }
+        }
+
+        return $tableName ?? throw new InvalidArgumentException("Nenhum item informado");
     }
 
     /**

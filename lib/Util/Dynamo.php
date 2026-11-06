@@ -4,27 +4,32 @@ declare(strict_types=1);
 
 namespace Jonjon\PhpDynamo\Util;
 
-use Aws\DynamoDb\BinaryValue;
 use Aws\DynamoDb\DynamoDbClient;
 use Aws\DynamoDb\Exception\DynamoDbException;
 use Aws\DynamoDb\Marshaler;
-use Aws\DynamoDb\NumberValue;
-use Aws\DynamoDb\SetValue;
 use Aws\DynamoDb\WriteRequestBatch;
+use Aws\Exception\AwsException;
 use Aws\Result;
 use Exception;
-use stdClass;
+use InvalidArgumentException;
+use RuntimeException;
 
 class Dynamo
 {
     protected DynamoDbClient $client;
     protected Marshaler $marshaler;
     protected DynamoConfig $config;
+
+    /**
+     * Por tabela: nomes reais das chaves quando diferem de PK/SK (ex.: ['PK' => 'id']).
+     *
+     * @var array<string, array<string, string>>
+     */
     protected array $tableKeySchemaCache = [];
 
     public function __construct(?DynamoConfig $config = null)
     {
-        $this->config = $config ?? new DynamoConfig();
+        $this->config = $config ?? DynamoConfig::fromEnvironment();
         $this->marshaler = new Marshaler();
         $this->client = new DynamoDbClient($this->config->getClientParams());
     }
@@ -85,31 +90,20 @@ class Dynamo
 
     /**
      * Insere um item
+     *
+     * Erros do DynamoDB são propagados como DynamoDbException, sem alteração.
      */
-    public function putItem(string $tableName, $item): Result
+    public function putItem(string $tableName, array|object|string $item): Result
     {
-        $data = is_string($item) ? $item : json_encode($item, JSON_UNESCAPED_SLASHES);
-
-        try {
-            $marshaledItem = $this->marshaler->marshalJson($data);
-
-            // Verificar se PK e SK estão presentes
-            if (!isset($marshaledItem['PK'])) {
-                throw new Exception("PK não encontrado no item. Dados: $data");
-            }
-
-            // Mapear keys se necessário
-            $marshaledItem = $this->mapKeysToTableSchema($tableName, $marshaledItem);
-
-            $params = [
-                'TableName' => $tableName,
-                'Item' => $marshaledItem
-            ];
-
-            return $this->client->putItem($params);
-        } catch (Exception $e) {
-            throw new Exception("Erro no putItem: " . $e->getMessage() . " - Dados: $data");
+        $marshaledItem = $this->marshalData($item);
+        if (!isset($marshaledItem['PK'])) {
+            throw new InvalidArgumentException("O item para a tabela '$tableName' não possui o atributo 'PK'.");
         }
+
+        return $this->client->putItem([
+            'TableName' => $tableName,
+            'Item' => $this->mapKeysToTableSchema($tableName, $marshaledItem),
+        ]);
     }
 
     /**
@@ -127,61 +121,52 @@ class Dynamo
     /**
      * Busca um item
      */
-    public function getItem(string $tableName, array $key): int|SetValue|array|BinaryValue|stdClass|NumberValue|null
+    public function getItem(string $tableName, array $key): ?array
     {
-        $result = $this->client->getItem($this->prepareItem($tableName, json_encode($key)));
-        return isset($result['Item']) ? $this->marshaler->unmarshalItem($result['Item']) : null;
+        $result = $this->client->getItem([
+            'TableName' => $tableName,
+            'Key' => $this->marshalKey($tableName, $key),
+        ]);
+
+        return isset($result['Item']) ? $this->unmarshal($result['Item']) : null;
     }
 
     /**
      * Atualiza um item
+     *
+     * A expressão pode começar com SET, REMOVE, ADD ou DELETE; sem cláusula, assume SET.
+     *
+     * @param array<string, string>|null $names ExpressionAttributeNames (ex.: ['#n' => 'name'])
      */
     public function updateItem(
         string $tableName,
         array $key,
         string $updateExpression,
         array $values,
-        ?string $condition = null
+        ?string $condition = null,
+        ?array $names = null
     ): Result {
-        $params = [
-            'TableName' => $tableName,
-            'Key' => $this->marshaler->marshalJson(json_encode($key)),
-            'UpdateExpression' => 'SET ' . $updateExpression,
-            'ExpressionAttributeValues' => $this->marshaler->marshalJson(json_encode($values)),
-            'ReturnValues' => 'UPDATED_NEW'
-        ];
-
-        if ($condition) {
-            $params['ConditionExpression'] = $condition;
-        }
+        $params = $this->buildUpdateParams($tableName, $key, $updateExpression, $values, $condition, $names);
+        $params['ReturnValues'] = 'UPDATED_NEW';
 
         return $this->client->updateItem($params);
     }
 
     /**
      * Remove um item
+     *
+     * @param array<string, string>|null $names ExpressionAttributeNames usados na condição
      */
-    public function deleteItem(string $tableName, array $key, ?string $condition = null, ?array $values = null): Result
-    {
-        $params = [
-            'TableName' => $tableName,
-            'Key' => $this->marshaler->marshalJson(json_encode($key))
-        ];
-
-        if ($condition) {
-            $params['ConditionExpression'] = $condition;
-        }
-
-        if ($values) {
-            $params['ExpressionAttributeValues'] = $this->marshaler->marshalJson(json_encode($values));
-        }
-
-        return $this->client->deleteItem($params);
+    public function deleteItem(
+        string $tableName,
+        array $key,
+        ?string $condition = null,
+        ?array $values = null,
+        ?array $names = null
+    ): Result {
+        return $this->client->deleteItem($this->buildDeleteParams($tableName, $key, $condition, $values, $names));
     }
 
-    /**
-     * Executa uma query
-     */
     public function query(
         string $tableName,
         string $keyConditionExpression,
@@ -196,7 +181,7 @@ class Dynamo
         $queryParams = [
             'TableName' => $tableName,
             'KeyConditionExpression' => $keyConditionExpression,
-            'ExpressionAttributeValues' => $this->marshaler->marshalJson(json_encode($values)),
+            'ExpressionAttributeValues' => $this->marshalData($values),
         ];
 
         if ($filterExpression) {
@@ -220,7 +205,7 @@ class Dynamo
         $result = $this->client->query($queryParams);
 
         $items = array_map(
-            fn($item) => $this->marshaler->unmarshalItem($item),
+            fn($item) => $this->unmarshal($item),
             $result['Items'] ?? []
         );
 
@@ -232,9 +217,6 @@ class Dynamo
         ];
     }
 
-    /**
-     * Executa um scan
-     */
     public function scan(
         string $tableName,
         ?string $filterExpression = null,
@@ -252,7 +234,7 @@ class Dynamo
         }
 
         if ($values) {
-            $scanParams['ExpressionAttributeValues'] = $this->marshaler->marshalJson(json_encode($values));
+            $scanParams['ExpressionAttributeValues'] = $this->marshalData($values);
         }
 
         $scanParams = $this->applyOperationParams(
@@ -264,7 +246,7 @@ class Dynamo
         $result = $this->client->scan($scanParams);
 
         $items = array_map(
-            fn($item) => $this->marshaler->unmarshalItem($item),
+            fn($item) => $this->unmarshal($item),
             $result['Items'] ?? []
         );
 
@@ -277,48 +259,27 @@ class Dynamo
     }
 
     /**
-     * Insere múltiplos itens usando WriteRequestBatch
+     * @param array<string, mixed> $config Opções do WriteRequestBatch (batch_size, pool_size, before, error)
      */
     public function batchWriteItems(string $tableName, array $items, array $config = []): WriteRequestBatch
     {
-        $config['table'] = $tableName;
-        $writeRequest = new WriteRequestBatch($this->client, $config);
-
-        foreach ($items as $item) {
-            $data = is_string($item) ? $item : json_encode($item, JSON_UNESCAPED_SLASHES);
-            $writeRequest->put($this->marshaler->marshalJson($data));
-        }
-
-        return $writeRequest;
+        return $this->runWriteBatch($tableName, $config, function (WriteRequestBatch $batch) use ($tableName, $items) {
+            foreach ($items as $item) {
+                $batch->put($this->mapKeysToTableSchema($tableName, $this->marshalData($item)));
+            }
+        });
     }
 
     /**
-     * Remove múltiplos itens usando WriteRequestBatch
+     * @param array<string, mixed> $config Opções do WriteRequestBatch (batch_size, pool_size, before, error)
      */
     public function batchDeleteItems(string $tableName, array $keys, array $config = []): WriteRequestBatch
     {
-        $config['table'] = $tableName;
-        $writeRequest = new WriteRequestBatch($this->client, $config);
-
-        foreach ($keys as $key) {
-            $data = is_string($key) ? $key : json_encode($key, JSON_UNESCAPED_SLASHES);
-            $writeRequest->delete($this->marshaler->marshalJson($data));
-        }
-
-        return $writeRequest;
-    }
-
-    /**
-     * Prepara dados para operações
-     */
-    private function prepareItem(string $tableName, string $data): array
-    {
-        $marshaledItem = $this->marshaler->marshalJson($data);
-
-        return [
-            'TableName' => $tableName,
-            'Key' => $marshaledItem
-        ];
+        return $this->runWriteBatch($tableName, $config, function (WriteRequestBatch $batch) use ($tableName, $keys) {
+            foreach ($keys as $key) {
+                $batch->delete($this->mapKeysToTableSchema($tableName, $this->marshalData($key)));
+            }
+        });
     }
 
     /**
@@ -335,91 +296,6 @@ class Dynamo
     public function getConfig(): DynamoConfig
     {
         return $this->config;
-    }
-
-    /**
-     * Mapeia as chaves do item para o schema da tabela
-     */
-    private function mapKeysToTableSchema(string $tableName, array $marshaledItem): array
-    {
-        try {
-            $requiredKeys = $this->getTableKeySchema($tableName);
-            if ($requiredKeys === []) {
-                return $marshaledItem;
-            }
-
-            // Se a tabela usa PK/SK, não precisa mapear
-            if (in_array('PK', $requiredKeys) && in_array('SK', $requiredKeys)) {
-                return $marshaledItem;
-            }
-
-            // Mapear PK/SK para os nomes corretos da tabela
-            $mappedItem = $marshaledItem;
-
-            // Mapear PK para o primeiro key (partition key)
-            if (isset($marshaledItem['PK']) && !empty($requiredKeys)) {
-                $partitionKey = $requiredKeys[0];
-                $mappedItem[$partitionKey] = $marshaledItem['PK'];
-                unset($mappedItem['PK']);
-            }
-
-            // Mapear SK para o segundo key (sort key) se existir
-            if (isset($marshaledItem['SK']) && count($requiredKeys) > 1) {
-                $sortKey = $requiredKeys[1];
-                $mappedItem[$sortKey] = $marshaledItem['SK'];
-                unset($mappedItem['SK']);
-            }
-
-            return $mappedItem;
-        } catch (Exception $e) {
-            // Se não conseguir obter o schema, retorna o item original
-            return $marshaledItem;
-        }
-    }
-
-    private function getTableKeySchema(string $tableName): array
-    {
-        if (array_key_exists($tableName, $this->tableKeySchemaCache)) {
-            return $this->tableKeySchemaCache[$tableName];
-        }
-
-        $tableInfo = $this->describeTable($tableName);
-        if (!is_array($tableInfo) || !isset($tableInfo['Table'])) {
-            return $this->tableKeySchemaCache[$tableName] = [];
-        }
-
-        $keySchema = $tableInfo['Table']['KeySchema'] ?? [];
-
-        return $this->tableKeySchemaCache[$tableName] = array_map(
-            fn($key) => $key['AttributeName'],
-            $keySchema
-        );
-    }
-
-    private function applyOperationParams(array $operationParams, array $params, array $passthroughKeys): array
-    {
-        if (isset($params['ExclusiveStartKey'])) {
-            $operationParams['ExclusiveStartKey'] = $this->marshaler->marshalJson(
-                json_encode($params['ExclusiveStartKey'])
-            );
-        }
-
-        foreach ($passthroughKeys as $key) {
-            if (isset($params[$key])) {
-                $operationParams[$key] = $params[$key];
-            }
-        }
-
-        return $operationParams;
-    }
-
-    private function unmarshalLastKey(Result $result): ?array
-    {
-        if (!isset($result['LastEvaluatedKey']) || empty($result['LastEvaluatedKey'])) {
-            return null;
-        }
-
-        return $this->marshaler->unmarshalItem($result['LastEvaluatedKey']);
     }
 
     /**
@@ -457,25 +333,120 @@ class Dynamo
     /**
      * Prepara dados para operação PUT
      */
-    public function toPrepare(string $table, $doc): array
+    public function toPrepare(string $table, array|object|string $doc): array
     {
-        $data = is_string($doc) ? $doc : json_encode($doc, JSON_UNESCAPED_SLASHES);
-        $marshaledItem = $this->marshaler->marshalJson($data);
-
         return [
             'TableName' => $table,
-            'Item' => $marshaledItem
+            'Item' => $this->mapKeysToTableSchema($table, $this->marshalData($doc)),
         ];
     }
 
     /**
      * Prepara dados para operação DELETE
+     *
+     * @param array<string, string>|null $names
      */
-    public function toPrepareDelete(string $table, array $key, ?string $condition = null, ?array $values = null): array
+    public function toPrepareDelete(
+        string $table,
+        array $key,
+        ?string $condition = null,
+        ?array $values = null,
+        ?array $names = null
+    ): array {
+        return $this->buildDeleteParams($table, $key, $condition, $values, $names);
+    }
+
+    /**
+     * Prepara dados para operação UPDATE
+     *
+     * @param array<string, string>|null $names
+     */
+    public function toPrepareUpdate(
+        string $table,
+        string $updateExpression,
+        array $values,
+        array $key,
+        ?string $condition = null,
+        ?array $names = null
+    ): array {
+        return $this->buildUpdateParams($table, $key, $updateExpression, $values, $condition, $names);
+    }
+
+    /**
+     * @param callable(WriteRequestBatch): void $enqueue
+     * @param array<string, mixed> $config
+     */
+    private function runWriteBatch(string $tableName, array $config, callable $enqueue): WriteRequestBatch
     {
+        $errors = [];
+        $collectErrors = !isset($config['error']);
+
+        $config['table'] = $tableName;
+        if ($collectErrors) {
+            $config['error'] = function (AwsException $error) use (&$errors): void {
+                $errors[] = $error;
+            };
+        }
+
+        $batch = new WriteRequestBatch($this->client, $config);
+        $enqueue($batch);
+        $batch->flush();
+
+        if ($errors !== []) {
+            throw new RuntimeException(
+                sprintf(
+                    'Falha em %d requisição(ões) de lote na tabela "%s": %s',
+                    count($errors),
+                    $tableName,
+                    $errors[0]->getAwsErrorMessage() ?? $errors[0]->getMessage()
+                ),
+                0,
+                $errors[0]
+            );
+        }
+
+        return $batch;
+    }
+
+    private function buildUpdateParams(
+        string $table,
+        array $key,
+        string $updateExpression,
+        array $values,
+        ?string $condition,
+        ?array $names
+    ): array {
         $params = [
             'TableName' => $table,
-            'Key' => $this->marshaler->marshalJson(json_encode($key))
+            'Key' => $this->marshalKey($table, $key),
+            'UpdateExpression' => $this->normalizeUpdateExpression($updateExpression),
+        ];
+
+        if ($values !== []) {
+            $params['ExpressionAttributeValues'] = $this->marshalData($values);
+        }
+
+        if ($names) {
+            $params['ExpressionAttributeNames'] = $names;
+        }
+
+        if ($condition) {
+            $params['ConditionExpression'] = $condition;
+        }
+
+        return $params;
+    }
+
+    private function buildDeleteParams(
+        string $table,
+        array $key,
+        ?string $condition,
+        ?array $values,
+        ?array $names
+    ): array {
+        $params = [
+            'TableName' => $table,
+            'Key' => $this->marshalKey($table, $key),
         ];
 
         if ($condition) {
@@ -483,29 +454,108 @@ class Dynamo
         }
 
         if ($values) {
-            $params['ExpressionAttributeValues'] = $this->marshaler->marshalJson(json_encode($values));
+            $params['ExpressionAttributeValues'] = $this->marshalData($values);
+        }
+
+        if ($names) {
+            $params['ExpressionAttributeNames'] = $names;
         }
 
         return $params;
     }
 
-    /**
-     * Prepara dados para operação UPDATE
-     */
-    public function toPrepareUpdate(string $table, string $updateExpression, array $values, array $key, ?string $condition = null): array
+    private function normalizeUpdateExpression(string $expression): string
     {
-        $params = [
-            'TableName' => $table,
-            'Key' => $this->marshaler->marshalJson(json_encode($key)),
-            'UpdateExpression' => 'SET ' . $updateExpression,
-            'ExpressionAttributeValues' => $this->marshaler->marshalJson(json_encode($values)),
-            'ReturnValues' => 'UPDATED_NEW'
-        ];
+        $expression = trim($expression);
 
-        if ($condition) {
-            $params['ConditionExpression'] = $condition;
+        return preg_match('/^(SET|REMOVE|ADD|DELETE)\s/i', $expression) ? $expression : 'SET ' . $expression;
+    }
+
+    private function marshalKey(string $tableName, array $key): array
+    {
+        return $this->mapKeysToTableSchema($tableName, $this->marshalData($key));
+    }
+
+    private function marshalData(array|object|string $data): array
+    {
+        $json = is_string($data) ? $data : json_encode($data, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+
+        return $this->marshaler->marshalJson($json);
+    }
+
+    private function mapKeysToTableSchema(string $tableName, array $attributes): array
+    {
+        foreach ($this->getTableKeyNames($tableName) as $logicalName => $tableKeyName) {
+            if (!array_key_exists($logicalName, $attributes)) {
+                continue;
+            }
+
+            $attributes[$tableKeyName] = $attributes[$logicalName];
+            unset($attributes[$logicalName]);
         }
 
-        return $params;
+        return $attributes;
+    }
+
+    /**
+     * @return array<string, string> Ex.: ['PK' => 'id', 'SK' => 'createdAt']; vazio se a tabela já usa PK/SK.
+     */
+    private function getTableKeyNames(string $tableName): array
+    {
+        if (array_key_exists($tableName, $this->tableKeySchemaCache)) {
+            return $this->tableKeySchemaCache[$tableName];
+        }
+
+        try {
+            $description = $this->describeTable($tableName);
+        } catch (DynamoDbException $e) {
+            return $this->tableKeySchemaCache[$tableName] = [];
+        }
+
+        if (!isset($description['Table'])) {
+            return [];
+        }
+
+        $names = [];
+        foreach ($description['Table']['KeySchema'] ?? [] as $keyDefinition) {
+            $logicalName = $keyDefinition['KeyType'] === 'HASH' ? 'PK' : 'SK';
+            if ($keyDefinition['AttributeName'] !== $logicalName) {
+                $names[$logicalName] = $keyDefinition['AttributeName'];
+            }
+        }
+
+        return $this->tableKeySchemaCache[$tableName] = $names;
+    }
+
+    private function applyOperationParams(array $operationParams, array $params, array $passthroughKeys): array
+    {
+        if (isset($params['ExclusiveStartKey'])) {
+            $operationParams['ExclusiveStartKey'] = $this->marshalData($params['ExclusiveStartKey']);
+        }
+
+        foreach ($passthroughKeys as $key) {
+            if (isset($params[$key])) {
+                $operationParams[$key] = $params[$key];
+            }
+        }
+
+        return $operationParams;
+    }
+
+    private function unmarshalLastKey(Result $result): ?array
+    {
+        if (!isset($result['LastEvaluatedKey']) || empty($result['LastEvaluatedKey'])) {
+            return null;
+        }
+
+        return $this->unmarshal($result['LastEvaluatedKey']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function unmarshal(array $item): array
+    {
+        return (array) $this->marshaler->unmarshalItem($item);
     }
 }

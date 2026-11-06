@@ -13,8 +13,10 @@ test: ## Executa todos os testes
 test-unit: ## Executa apenas testes unitários
 	composer test:unit
 
-test-integration: ## Executa apenas testes de integração
-	composer test:integration
+DYNAMODB_ENDPOINT ?= http://localhost:8000
+
+test-integration: ## Executa os testes de integração (requer make docker-up)
+	DYNAMODB_ENDPOINT=$(DYNAMODB_ENDPOINT) composer test:integration
 
 test-coverage: ## Executa testes com cobertura
 	composer test:coverage
@@ -39,27 +41,27 @@ clean: ## Limpa arquivos temporários
 	rm -f coverage.txt
 
 docker-up: ## Inicia os containers Docker
-	docker-compose up -d
+	docker compose up -d
 
 docker-down: ## Para os containers Docker
-	docker-compose down
+	docker compose down
 
-example: ## Executa o exemplo de uso
-	composer example
+example: ## Executa o exemplo de uso (requer make docker-up)
+	DYNAMODB_ENDPOINT=$(DYNAMODB_ENDPOINT) composer example
 
 check: ## Executa todas as verificações
 	composer check
 
 setup: ## Configura o ambiente de desenvolvimento
 	composer install
-	docker-compose up -d
+	docker compose up -d
 	@echo "Ambiente configurado! Acesse http://localhost:8001 para o DynamoDB Admin"
 
 dev: ## Inicia o ambiente de desenvolvimento
 	@echo "Iniciando ambiente de desenvolvimento..."
-	@echo "LocalStack: http://localhost:4566"
+	@echo "DynamoDB Local: http://localhost:8000"
 	@echo "DynamoDB Admin: http://localhost:8001"
-	docker-compose up
+	docker compose up
 
 release: ## Cria uma nova versão (patch)
 	./scripts/release.sh patch

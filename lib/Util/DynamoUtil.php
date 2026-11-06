@@ -53,13 +53,13 @@ trait DynamoUtil
     {
         $names = [];
         $expression = [];
-        
+
         foreach ($attributes as $attribute) {
             $name = $this->generateAttributeName($attribute);
             $names[$name] = $attribute;
             $expression[] = $name;
         }
-        
+
         return [
             'names' => $names,
             'expression' => implode(', ', $expression)
@@ -74,13 +74,13 @@ trait DynamoUtil
         if (empty($key)) {
             return false;
         }
-        
+
         foreach ($key as $attributeName => $value) {
             if (empty($attributeName) || $value === null) {
                 return false;
             }
         }
-        
+
         return true;
     }
 
@@ -126,11 +126,11 @@ trait DynamoUtil
         if (is_numeric($value)) {
             return $value > 0;
         }
-        
+
         if (is_string($value)) {
             return strtotime($value) !== false;
         }
-        
+
         return false;
     }
 
@@ -142,11 +142,11 @@ trait DynamoUtil
         if (is_numeric($timestamp)) {
             return (new \DateTime())->setTimestamp($timestamp);
         }
-        
+
         if (is_string($timestamp)) {
             return new \DateTime($timestamp);
         }
-        
+
         throw new \InvalidArgumentException('Timestamp inválido');
     }
 }

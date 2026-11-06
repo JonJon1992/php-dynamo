@@ -25,8 +25,7 @@ class DynamoProperty
         ?string $onHydrate = null,
         ?string $onSerialize = null,
         bool $required = false
-    )
-    {
+    ) {
         $values = is_array($name) ? $name : [
             'name' => $name,
             'type' => $type,

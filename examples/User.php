@@ -30,11 +30,10 @@ class User extends DynamoItem
     public function __construct($data = null)
     {
         parent::__construct($data);
-        
-        if ($data === null) {
-            $this->createdAt = date('Y-m-d H:i:s');
-            $this->updatedAt = date('Y-m-d H:i:s');
-        }
+
+        $now = date('Y-m-d H:i:s');
+        $this->createdAt ??= $now;
+        $this->updatedAt ??= $now;
     }
 
     public function pk(): string
@@ -142,4 +141,4 @@ class User extends DynamoItem
             'active' => $this->active
         ];
     }
-} 
+}

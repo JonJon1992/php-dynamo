@@ -10,6 +10,9 @@ use ReflectionMethod;
 use ReflectionProperty;
 use stdClass;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 abstract class DynamoItem
 {
     private static array $indexMethodsCache = [];
@@ -19,7 +22,7 @@ abstract class DynamoItem
     /**
      * Construtor da classe
      */
-    public function __construct($data = null)
+    public function __construct(mixed $data = null)
     {
         if ($data !== null) {
             $this->setData($data);
@@ -71,7 +74,7 @@ abstract class DynamoItem
     /**
      * Define os dados do item
      */
-    private function setData($data): static
+    private function setData(mixed $data): static
     {
         if (is_array($data)) {
             $data = (object)$data;
@@ -92,7 +95,7 @@ abstract class DynamoItem
     /**
      * Hidrata o objeto com os dados
      */
-    private function hydrate(stdClass $data): void
+    private function hydrate(object $data): void
     {
         $class = get_class($this);
 
@@ -166,7 +169,7 @@ abstract class DynamoItem
     /**
      * Verifica se um valor obrigatório está presente
      */
-    private function check(bool $required, $value, string $name): void
+    private function check(bool $required, mixed $value, string $name): void
     {
         $isBlank = function ($value) {
             return empty($value) && !is_numeric($value) && !is_bool($value);
@@ -181,7 +184,7 @@ abstract class DynamoItem
     /**
      * Faz o cast do valor para o tipo especificado
      */
-    private function cast(?string $type, $value, string $name)
+    private function cast(?string $type, mixed $value, string $name): mixed
     {
         if ($type && !is_null($value) && !settype($value, $type)) {
             throw new InvalidArgumentException("O tipo do atributo '$name' é inválido, recebido: '$type'");
@@ -246,7 +249,7 @@ abstract class DynamoItem
         }
 
         $metadata = [];
-        $rClass = new ReflectionClass($class);
+        $rClass = new ReflectionClass($this);
 
         foreach ($rClass->getProperties() as $property) {
             $doc = $this->getPropertyAnnotation($class, $property);
@@ -254,20 +257,8 @@ abstract class DynamoItem
                 continue;
             }
 
-            if (!$property->isPublic()) {
-                $property->setAccessible(true);
-            }
-
             $hydrateMethod = $doc->getOnHydrate() ? new ReflectionMethod($class, $doc->getOnHydrate()) : null;
             $serializeMethod = $doc->getOnSerialize() ? new ReflectionMethod($class, $doc->getOnSerialize()) : null;
-
-            if ($hydrateMethod instanceof ReflectionMethod && !$hydrateMethod->isPublic()) {
-                $hydrateMethod->setAccessible(true);
-            }
-
-            if ($serializeMethod instanceof ReflectionMethod && !$serializeMethod->isPublic()) {
-                $serializeMethod->setAccessible(true);
-            }
 
             $metadata[] = [
                 'property' => $property,
@@ -280,7 +271,7 @@ abstract class DynamoItem
         return self::$propertyMetadataCache[$class] = $metadata;
     }
 
-    private function normalizeForArray($value)
+    private function normalizeForArray(mixed $value): mixed
     {
         if ($value instanceof stdClass) {
             return $this->normalizeForArray(get_object_vars($value));
@@ -306,7 +297,7 @@ abstract class DynamoItem
      */
     public function toJson(): string
     {
-        return json_encode($this->serialize(), JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        return json_encode($this->serialize(), JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
     }
 
     /**
